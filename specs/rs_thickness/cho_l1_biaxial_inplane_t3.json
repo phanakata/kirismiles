@@ -1,0 +1,38 @@
+{
+  "name": "cho_l1_biaxial_inplane_t3",
+  "sheet": {
+    "L": 72,
+    "W": 64
+  },
+  "pattern": {
+    "generator": "rotating_squares",
+    "params": {
+      "a": 8,
+      "t": 3,
+      "nx": 8
+    }
+  },
+  "mesh": {
+    "h_cut": 0.375,
+    "h_far": 3,
+    "refine_dist": [
+      0.6000000000000001,
+      4
+    ]
+  },
+  "material": {
+    "E": 2.0,
+    "nu": 0.49,
+    "h": 2.0
+  },
+  "load": {
+    "Dmax": 30,
+    "steps": 60
+  },
+  "boundary": {
+    "type": "biaxial",
+    "in_plane": true
+  },
+  "ell": 8,
+  "probes": {}
+}

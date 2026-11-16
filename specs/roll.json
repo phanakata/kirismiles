@@ -1,0 +1,36 @@
+{
+  "name": "roll",
+  "sheet": {
+    "L": 150,
+    "W": 60
+  },
+  "pattern": {
+    "generator": "roll_cell",
+    "params": {
+      "kerf": 1.0
+    }
+  },
+  "mesh": {
+    "h_cut": 0.6,
+    "h_far": 3,
+    "refine_dist": [
+      1,
+      6
+    ]
+  },
+  "load": {
+    "Dmax": 22.5,
+    "steps": 45
+  },
+  "ell": 30,
+  "probes": {
+    "upper_half_a": [
+      90,
+      52
+    ],
+    "upper_half_b": [
+      90,
+      34
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "yaw",
+  "sheet": {
+    "L": 150,
+    "W": 60
+  },
+  "pattern": {
+    "generator": "yaw_cell",
+    "params": {}
+  },
+  "mesh": {
+    "h_cut": 0.7,
+    "h_far": 3,
+    "refine_dist": [
+      1,
+      6
+    ]
+  },
+  "load": {
+    "Dmax": 15,
+    "steps": 45
+  },
+  "ell": 20,
+  "probes": {
+    "leaf_a": [
+      65.79,
+      26.65
+    ],
+    "leaf_b": [
+      84.21,
+      33.35
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "single_cut",
+  "sheet": {
+    "L": 182,
+    "W": 100
+  },
+  "pattern": {
+    "generator": "single_cut",
+    "params": {
+      "b": 80
+    }
+  },
+  "mesh": {
+    "h_cut": 0.5,
+    "h_far": 4,
+    "refine_dist": [
+      2,
+      25
+    ]
+  },
+  "load": {
+    "Dmax": 0.5,
+    "steps": 20
+  },
+  "ell": 80,
+  "probes": {}
+}

@@ -1,0 +1,30 @@
+{
+  "name": "alternating_long",
+  "sheet": {
+    "L": 120,
+    "W": 60
+  },
+  "pattern": {
+    "generator": "alternating",
+    "params": {
+      "b": 36,
+      "g": 4,
+      "d": 5,
+      "n_rows": 20
+    }
+  },
+  "mesh": {
+    "h_cut": 0.7,
+    "h_far": 3,
+    "refine_dist": [
+      1,
+      4
+    ]
+  },
+  "load": {
+    "Dmax": 24,
+    "steps": 50
+  },
+  "ell": 20,
+  "probes": {}
+}

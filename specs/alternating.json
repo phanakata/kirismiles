@@ -1,0 +1,47 @@
+{
+  "name": "alternating",
+  "sheet": {
+    "L": 120,
+    "W": 60
+  },
+  "pattern": {
+    "generator": "alternating",
+    "params": {
+      "b": 20,
+      "g": 4,
+      "d": 5,
+      "n_rows": 12
+    }
+  },
+  "mesh": {
+    "h_cut": 0.7,
+    "h_far": 3,
+    "refine_dist": [
+      1,
+      4
+    ]
+  },
+  "load": {
+    "Dmax": 24,
+    "steps": 50
+  },
+  "ell": 20,
+  "probes": {
+    "facet1_a": [
+      58.3,
+      24
+    ],
+    "facet1_b": [
+      61.7,
+      24
+    ],
+    "facet2_a": [
+      63.3,
+      36
+    ],
+    "facet2_b": [
+      66.7,
+      36
+    ]
+  }
+}

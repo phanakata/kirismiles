@@ -1,0 +1,39 @@
+{
+  "name": "pitch_concave",
+  "sheet": {
+    "L": 180,
+    "W": 60
+  },
+  "pattern": {
+    "generator": "pitch_cell",
+    "params": {
+      "Lc": 18.75,
+      "Lpar": 32,
+      "Lr": 95,
+      "gap": 4
+    }
+  },
+  "mesh": {
+    "h_cut": 0.8,
+    "h_far": 3,
+    "refine_dist": [
+      1,
+      8
+    ]
+  },
+  "load": {
+    "Dmax": 14,
+    "steps": 45
+  },
+  "ell": 30,
+  "probes": {
+    "ribbon_a": [
+      46,
+      30
+    ],
+    "ribbon_b": [
+      134,
+      30
+    ]
+  }
+}

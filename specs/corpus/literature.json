@@ -1,0 +1,330 @@
+{
+  "about": "Published kirigami designs written in KiriSMILES. status: exact = the string reproduces a generator of kirigami/geometry.py cut for cut, or is taken directly from the original design file; topology = the cut topology of the cited papers, with representative dimensions (each paper uses its own values, which become the numbers in the string); approximate = the shape is approximated (e.g. a curve by a polyline); instance = one specific instance of a family that has no compact form (graded or random), written piece by piece; not_expressed = no string yet, with the reason. Checked by scripts/corpus.py.",
+  "entries": [
+    {
+      "id": "single_cut",
+      "design": "single slit",
+      "refs": [
+        "dias2017kirigami"
+      ],
+      "status": "exact",
+      "code": "V80@0,0",
+      "L": 182,
+      "W": 100,
+      "generator": [
+        "single_cut_pattern",
+        [
+          182,
+          100,
+          80
+        ]
+      ]
+    },
+    {
+      "id": "two_cuts",
+      "design": "two parallel slits",
+      "refs": [
+        "dias2017kirigami"
+      ],
+      "status": "exact",
+      "code": "(V40@5,0){mx}",
+      "L": 182,
+      "W": 100,
+      "generator": [
+        "two_cuts_pattern",
+        [
+          182,
+          100,
+          40,
+          10
+        ]
+      ]
+    },
+    {
+      "id": "lift_relief",
+      "design": "lift cell with relief cuts",
+      "refs": [
+        "dias2017kirigami"
+      ],
+      "status": "exact",
+      "code": "X(-31.56,-1.12;-31.56,1.13;-1.48,11.01;-1.48,9.01;-29.98,1.13;-29.98,-1.12;-1.48,-8.99;-1.48,-10.99);X(31.6,-1.12;31.6,1.13;2.05,11.01;2.05,9.01;30.02,1.13;30.02,-1.12;2.05,-8.99;2.05,-10.99);C(31.6,4.51;1.6,15.51);C(31.6,9;4.6,18);C(31.6,-4.49;1.6,-15.49);C(31.6,-8.99;4.6,-17.99);C(-4.56,-17.99;-31.56,-8.99);C(-1.56,-15.49;-31.56,-4.49);C(-1.56,15.51;-31.56,4.51);C(-31.56,9;-4.56,18)",
+      "L": 100,
+      "W": 40,
+      "note": "Fig. 3a-iv of Kirigami Actuators: two chevron-shaped 2 mm slots bound a diamond plate that lifts, and eight relief cuts parallel to them give room for in-plane compression. Coordinates taken directly from the original vector design file (40 x 100 mm sheets), written as drawn, without imposing symmetry."
+    },
+    {
+      "id": "pitch_cell",
+      "design": "pitch actuator cell",
+      "refs": [
+        "dias2017kirigami"
+      ],
+      "status": "exact",
+      "code": "(C(2,16;47.5,16;47.5,-16;2,-16)){mx};(K18.75@0){my}",
+      "L": 180,
+      "W": 60,
+      "generator": [
+        "pitch_pattern",
+        [
+          180,
+          60,
+          18.75,
+          32,
+          95,
+          4
+        ]
+      ]
+    },
+    {
+      "id": "pitch_chain",
+      "design": "pitch actuator chain",
+      "refs": [
+        "dias2017kirigami"
+      ],
+      "status": "exact",
+      "code": "P125x200S0O0[(C(0,-30;0,-11.25)){my};(C(2,16;47.5,16;47.5,-16;2,-16)){mx}]N3E0",
+      "L": 415,
+      "W": 60,
+      "generator": [
+        "pitch_chain_pattern",
+        [
+          415,
+          60,
+          3,
+          125,
+          18.75,
+          32,
+          95,
+          4
+        ]
+      ]
+    },
+    {
+      "id": "roll_cell",
+      "design": "roll actuator cell",
+      "refs": [
+        "dias2017kirigami"
+      ],
+      "status": "exact",
+      "code": "((K23.25@49){my};(K7.5@34.4){my};C(41.6,0;5,0);C(41.6,b+2.9;41.6,t-3.5);X(1.25,-2.9;5.5,0;1.25,2.9)){mx}k1",
+      "L": 150,
+      "W": 60,
+      "generator": [
+        "roll_pattern",
+        [
+          150,
+          60,
+          1.0
+        ]
+      ]
+    },
+    {
+      "id": "yaw_cell",
+      "design": "yaw actuator cell",
+      "refs": [
+        "dias2017kirigami"
+      ],
+      "status": "exact",
+      "code": "(+B(-24,t-2;-24,2;-16,14;-2,4)w3;K30@-31.5t){i};+E(14,8,20);X(-30,b+4;30,b+4;30,t-4;-30,t-4)",
+      "L": 150,
+      "W": 60,
+      "generator": [
+        "yaw_pattern",
+        [
+          150,
+          60
+        ]
+      ]
+    },
+    {
+      "id": "staggered_slits",
+      "design": "parallel slits (staggered)",
+      "refs": [
+        "shyu2015kirigami",
+        "blees2015graphene",
+        "isobe2016initial",
+        "lamoureux2015solar",
+        "yang2018multistable",
+        "dias2017kirigami"
+      ],
+      "status": "exact",
+      "code": "P5x40S1/2O0[V36@0,0]N20E4",
+      "L": 120,
+      "W": 60,
+      "generator": [
+        "alternating_pattern",
+        [
+          120,
+          60,
+          36,
+          4,
+          5,
+          20
+        ]
+      ],
+      "note": "Parallel-slit patterns used across these papers form one family; each uses its own slit length, spacings and row offset, which are the numbers in the string. The staggered (alternating) layout is verified for Blees et al. (alternating, offset cuts) and Dias et al.; for the others the papers describe parallel line cuts with their spacings."
+    },
+    {
+      "id": "rotating_squares",
+      "design": "rotating squares (orthogonal slits)",
+      "refs": [
+        "rafsanjani2017buckling",
+        "cho2014fractal",
+        "liu2021wallpaper"
+      ],
+      "status": "exact",
+      "code": "P8x16S1/2O0[H12@0,0;V12@0,1/2]N9E4",
+      "L": 72,
+      "W": 64,
+      "generator": [
+        "rotating_squares_pattern",
+        [
+          72,
+          64,
+          8,
+          4,
+          8
+        ]
+      ],
+      "note": "Cho et al.'s level 1 and the standard quad pattern of Liu et al. (their p4m and p4g examples); the panel size and hinge width are the numbers in the string."
+    },
+    {
+      "id": "chevron_skin",
+      "design": "triangular cuts, kirigami skin",
+      "refs": [
+        "rafsanjani2018skins"
+      ],
+      "status": "exact",
+      "code": "P2.25x7.794S1/2O0[C(0.351,0.608;2.25,3.897;0.351,7.186)]N64E1",
+      "L": 164,
+      "W": 74,
+      "note": "Rafsanjani et al., Sci. Robot. 2018, SI section S1 and Fig. S2: cuts on a triangular lattice a1 = [l cos(pi/6), l sin(pi/6)], a2 = [l cos(pi/6), -l sin(pi/6)] with l = 4.5 mm and delta/l = 0.156; each cut runs from P1 = a1 delta/l to P5 = a1 + a2 (1 - delta/l). Pull along the actuator (vertical in their figure, x here); sheet 164 x 74 mm, 9 x 32 cuts. Triangular cut: two straight cuts P1 -> P3 = a1 -> P5. Narrowest ligament delta cos(pi/6) = 0.61 mm, so checked with min_gap = 0.5 mm.",
+      "min_gap": 0.5
+    },
+    {
+      "id": "popup_shell",
+      "design": "triangular cuts, kirigami shell (unrolled)",
+      "refs": [
+        "rafsanjani2019popups"
+      ],
+      "status": "topology",
+      "code": "P6x20.785S1/2O0[C(-5.625,-9.743;0,0;-5.625,9.743)]N41E2",
+      "L": 260,
+      "W": 166.28,
+      "min_gap": 0.5,
+      "note": "Rafsanjani, Jin, Deng and Bertoldi, PNAS 2019, triangular pattern. Dimensions from their SI text: triangular lattice with l = 12 mm, unit cell L = 2l cos(pi/6) = 20.8 mm by H = 12 mm, cuts of length l - delta separated by hinges delta = l/16 = 0.75 mm; topology from SI Fig. S3A: a chevron at every lattice node whose two arms run along the +-30 deg lattice directions and stop delta short of the next node. Pull along the cylinder axis (vertical in their figure, x here). Sheet = the shell unrolled: n = 8 cells around (W = 8L) and 20 cells along the axis; the curvature of the shell is context. Validity checked with min_gap = 0.5 mm because the designed hinges are 0.75 mm."
+    },
+    {
+      "id": "circular_skin",
+      "design": "circular-arc cuts, kirigami skin (polyline approximation)",
+      "refs": [
+        "rafsanjani2018skins"
+      ],
+      "status": "approximate",
+      "code": "P2.25x7.794S1/2O0[C(0.351,0.608;1.138,1.212;1.741,1.998;2.121,2.914;2.25,3.897;2.121,4.88;1.741,5.796;1.138,6.583;0.351,7.186)]N64E1",
+      "L": 164,
+      "W": 74,
+      "note": "Rafsanjani et al., Sci. Robot. 2018, SI section S1 and Fig. S2: cuts on a triangular lattice a1 = [l cos(pi/6), l sin(pi/6)], a2 = [l cos(pi/6), -l sin(pi/6)] with l = 4.5 mm and delta/l = 0.156; each cut runs from P1 = a1 delta/l to P5 = a1 + a2 (1 - delta/l). Pull along the actuator (vertical in their figure, x here); sheet 164 x 74 mm, 9 x 32 cuts. Circular cut: the 120-degree arc of radius l - delta through P1, P3 and P5 (SI Fig. S2A), written as an 8-segment polyline because curved cuts are not yet in the notation. Narrowest ligament 0.43 mm in this approximation, so checked with min_gap = 0.4 mm.",
+      "min_gap": 0.4
+    },
+    {
+      "id": "graphene_grid",
+      "design": "grid of rectangular cuts (ML design)",
+      "refs": [
+        "hanakata2018accelerated",
+        "hanakata2020forward"
+      ],
+      "status": "topology",
+      "code": "V20@-48,-16k2;V20@0,16k2;V20@48,-16k2;(V20@24,0k2){mx}",
+      "L": 120,
+      "W": 60,
+      "note": "One configuration of a binary grid of allowed cut sites, as used to train CNNs and autoencoders; each cut is a rectangular cut, written as a slit with a 2 mm kerf."
+    },
+    {
+      "id": "fractal_level2",
+      "design": "hierarchical rotating squares, level 2 (alpha-alpha)",
+      "refs": [
+        "cho2014fractal"
+      ],
+      "status": "topology",
+      "note": "Cho et al. alpha motif (main text Fig. 2) applied at two levels: a cut through each square centre stopping 2 mm short of two edges, with arms out to the other two edges; smallest square 8 mm and hinge 2 mm as in their SI. Rigid-unit check: the mirror-symmetric mechanisms of alpha^N blocks number 1, 2, 6, 22 for N = 1-4, matching their F_N = (4^(N-1)+2)/3. Cuts are 0.5 mm slots because level-2 arms run into level-1 cuts; the 3 x 3 array and slot width are representative.",
+      "L": 112,
+      "W": 96,
+      "code": "P32x32S0O0[(V28@0,0;(H14@9,0){mx};(V12@8,8){mx}{my};(H12@0,8){my};(H6@13,8){mx}{my})k0.5]N3E2"
+    },
+    {
+      "id": "rotating_triangles",
+      "design": "rotating triangles (kagome, open state)",
+      "refs": [
+        "grima2006rotating",
+        "liu2021wallpaper"
+      ],
+      "status": "topology",
+      "note": "Equilateral triangles joined at their vertices, with hexagonal holes between them, on a triangular lattice (px = sqrt(3)/2 py, S1/2); the holes are shrunk to leave 1.4 mm hinges. Representative dimensions; other wallpaper groups are not yet checked.",
+      "L": 120,
+      "W": 60,
+      "code": "P8.66x10S1/2O2.5[X(3.724,2.15;0,4.3;-3.724,2.15;-3.724,-2.15;0,-4.3;3.724,-2.15)]N11E1"
+    },
+    {
+      "id": "star_multistable",
+      "design": "multistable star pattern (3 x 3 cells)",
+      "refs": [
+        "yang2023transformable"
+      ],
+      "status": "topology",
+      "L": 50,
+      "W": 42,
+      "code": "((C(-0.63,6.33;-1.63,1.63;-6.33,0.63);C(-0.63,20.33;-1.63,15.63;-6.33,14.63);C(-0.63,7.67;-1.63,12.37;-6.33,13.37)){mx}{my}{t14x3};(D13.52@7,7;A13.52@7,7){mx}{my};(C(2.22,16.22;7,21;11.78,16.22);C(16.22,2.22;21,7;16.22,11.78);C(16.22,16.22;21,21)){mx}{my};(H11.96@0,7){my}{t14x3};(V11.96@7,0;V11.96@21,0;V11.96@7,14;V11.96@21,14){mx}{my})k0.2",
+      "note": "Yang et al. 2023 Fig. 1d, tessellated 3 x 3 as in their Fig. 1e: in each 14 mm cell a four-point star (arm angle beta = 24 deg) and four corner diagonals cut out eight triangles, joined to the star and to the neighbouring cells by hinges s = 0.55 mm (s/l = 0.039, their simulated prototype). Cuts are 0.2 mm slots (the cut width of their simulations) because the corner diagonals of four cells cross; every hinge's narrowest neck is set to s. The star tip width, 1.26 mm, is measured from their drawing (not given in the paper). The cut lines on the free edges are the sheet edges and are not written; 4 mm pads join the outer cells to the loaded ends.",
+      "min_gap": 0.5
+    },
+    {
+      "id": "nonuniform_tessellation",
+      "design": "graded rotating squares (one instance)",
+      "refs": [
+        "choi2019programming",
+        "dang2021theorem"
+      ],
+      "status": "instance",
+      "note": "Hinge width graded from about 1 mm to 3 mm along the pull; every slit differs, so the string is written piece by piece (scripts/make_piecewise_corpus.py). The inverse-designed tessellations of the cited papers are written the same way, as polylines, but none is reproduced here.",
+      "L": 120,
+      "W": 60,
+      "code": "V14@-32,-22;V14@-32,-6;V14@-32,10;K11.67@-32t;H13.5@-24,-22;H13.5@-24,-6;H13.5@-24,10;H13.5@-24,26;K6.75@-24;V13.5@-24,-14;V13.5@-24,2;V13.5@-24,18;H13@-16,-14;H13@-16,2;H13@-16,18;V13@-16,-22;V13@-16,-6;V13@-16,10;K10.83@-16t;H12.5@-8,-22;H12.5@-8,-6;H12.5@-8,10;H12.5@-8,26;K6.25@-8;V12.5@-8,-14;V12.5@-8,2;V12.5@-8,18;H12@0,-14;H12@0,2;H12@0,18;V12@0,-22;V12@0,-6;V12@0,10;K10@0t;H11.5@8,-22;H11.5@8,-6;H11.5@8,10;H11.5@8,26;K5.75@8;V11.5@8,-14;V11.5@8,2;V11.5@8,18;H11@16,-14;H11@16,2;H11@16,18;V11@16,-22;V11@16,-6;V11@16,10;K9.17@16t;H10.5@24,-22;H10.5@24,-6;H10.5@24,10;H10.5@24,26;K5.25@24;V10.5@24,-14;V10.5@24,2;V10.5@24,18;V10@32,-22;V10@32,-6;V10@32,10;K8.33@32t"
+    },
+    {
+      "id": "random_cuts",
+      "design": "random link pattern (one realization)",
+      "refs": [
+        "chen2020topology"
+      ],
+      "status": "instance",
+      "note": "One realization of the random link patterns of Chen, Choi and Mahadevan (PNAS 2020): each hinge (link) between neighbouring squares of the rotating-squares lattice is kept with probability 0.7 and cut otherwise, by extending the slit end 2 mm to meet the perpendicular slit; cuts are 0.5 mm slots so that they may meet (scripts/make_piecewise_corpus.py, seed 1). Some other realizations leave squares cut loose, the connectivity percolation studied in that paper. The ensemble itself would need a notation for stochastic objects.",
+      "L": 120,
+      "W": 60,
+      "code": "(V14@-32,-21;V14@-32,-7;V12@-32,10;K10@-32t;H14@-25,-22;H14@-23,-6;H14@-23,10;H12@-24,26;K8@-24;V14@-24,-13;V14@-24,1;V12@-24,18;H14@-17,-14;H12@-16,2;H12@-16,18;V12@-16,-22;V12@-16,-6;V12@-16,10;K10@-16t;H14@-7,-22;H12@-8,-6;H14@-7,10;H14@-9,26;K6@-8;V16@-8,-14;V14@-8,1;V14@-8,17;H12@0,-14;H16@0,2;H12@0,18;V12@0,-22;V14@0,-7;V12@0,10;K12@0t;H12@8,-22;H12@8,-6;H14@7,10;H12@8,26;K6@8;V14@8,-13;V14@8,1;V12@8,18;H14@17,-14;H14@15,2;H14@15,18;V14@16,-21;V12@16,-6;V12@16,10;K12@16t;H14@25,-22;H16@24,-6;H16@24,10;H12@24,26;K6@24;V14@24,-13;V12@24,2;V12@24,18;V12@32,-22;V12@32,-6;V12@32,10;K10@32t)k0.5"
+    },
+    {
+      "id": "assembly_cross",
+      "design": "cross-cut square (3D pyramid precursor)",
+      "refs": [
+        "zhang2015rogers"
+      ],
+      "status": "topology",
+      "L": 40,
+      "W": 40,
+      "code": "H33.5@0,0;K16.5@0;K16.5@0t",
+      "note": "Zhang et al. 2015 Fig. 1B; layout measured from the top-view precursor of their SI Fig. S6B: a cut through the centre spanning 0.84 of the side, and two edge cracks from the anchored edges to 0.09 of the side from the centre, dividing the square into four smaller squares that buckle into a pyramid. Anchor tabs and the prestretched substrate are context. Side 40 mm (their demonstrations span 100 nm to 30 mm)."
+    },
+    {
+      "id": "assembly_cross2",
+      "design": "second-order cross cuts (3D precursor)",
+      "refs": [
+        "zhang2015rogers"
+      ],
+      "status": "topology",
+      "L": 40,
+      "W": 40,
+      "code": "(H33.3@0,0;K16.4@0;K16.4@0t;(H16.2@10,10){mx}{my};(V16.1@10,0){mx};(K8@10;K8@10t){mx})k0.6",
+      "note": "Zhang et al. 2015 Fig. 1C; layout measured from their SI Fig. S6C: the cross cut of Fig. 1B plus second-order cuts at a quarter of the side, whose vertical parts cross the central cut. Written as 0.6 mm slots (the measured cut width, about 0.015 of the side) because the cuts cross. Side 40 mm; anchors and substrate are context."
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "rotating_squares",
+  "sheet": {
+    "L": 120,
+    "W": 60
+  },
+  "pattern": {
+    "generator": "rotating_squares",
+    "params": {
+      "a": 10,
+      "t": 2,
+      "nx": 8
+    }
+  },
+  "mesh": {
+    "h_cut": 0.5,
+    "h_far": 3,
+    "refine_dist": [
+      0.8,
+      4
+    ]
+  },
+  "load": {
+    "Dmax": 24,
+    "steps": 50
+  },
+  "ell": 10,
+  "probes": {}
+}

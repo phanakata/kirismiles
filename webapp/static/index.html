@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kirigami FEM Studio</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e2e1dc;
+    --accent: #2a78d6; --accent-ink: #ffffff; --cut: #e34948; --sheet: #d9d8d4;
+    --solid: #c4c3bd; --sel: #eb6834; --ok: #1f8a4c; --bad: #c0392b; --clamp: #2a78d6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+         color: var(--ink); background: var(--bg); }
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 18px;
+           background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 17px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: 270px minmax(0, 1fr) 360px; gap: 12px;
+         padding: 12px; height: calc(100vh - 50px); }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; height: auto; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+           padding: 12px; overflow: auto; min-height: 0; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+       margin: 4px 0 10px; }
+  h3 { font-size: 14px; margin: 14px 0 6px; }
+  button { font: inherit; border: 1px solid var(--line); background: #fff; color: var(--ink);
+           border-radius: 7px; padding: 6px 10px; cursor: pointer; }
+  button:hover { border-color: #bdbcb6; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  button.on { background: #e8f0fb; border-color: var(--accent); color: #174f91; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tabs button { padding: 5px 9px; white-space: nowrap; }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-bottom: 8px;
+          cursor: pointer; background: #fff; }
+  .card:hover { border-color: var(--accent); }
+  .card.active { border-color: var(--accent); box-shadow: 0 0 0 2px #d6e5f8; }
+  .card .t { font-weight: 600; font-size: 13px; }
+  .card .d { color: var(--muted); font-size: 12px; }
+  .card svg, .card img { width: 100%; display: block; margin-top: 6px; border-radius: 4px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .toolbar .sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
+  .toolbar label { color: var(--muted); font-size: 12px; }
+  #canvasWrap { border: 1px solid var(--line); border-radius: 8px; background: #fbfbfa;
+                position: relative; }
+  #canvas { width: 100%; height: auto; display: block; touch-action: none; user-select: none; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+  .field { display: flex; flex-direction: column; gap: 2px; }
+  .field label { font-size: 12px; color: var(--muted); }
+  input, select { font: inherit; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px;
+                  background: #fff; color: var(--ink); width: 100%; }
+  .msgs { font-size: 12px; margin: 8px 0; }
+  .msgs .err { color: var(--bad); }
+  .msgs .ok { color: var(--ok); }
+  .bar { height: 8px; background: #ecebe7; border-radius: 4px; overflow: hidden; margin: 6px 0; }
+  .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .4s; }
+  table.kv { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.kv td { padding: 3px 0; border-bottom: 1px solid #f0efeb; vertical-align: top; }
+  table.kv td:first-child { color: var(--muted); padding-right: 8px; }
+  table.kv td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .result img { width: 100%; border: 1px solid var(--line); border-radius: 6px; margin-top: 8px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  a { color: var(--accent); }
+  #props:empty::before { content: "Select a shape to edit its numbers."; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kirigami FEM Studio</h1>
+  <span class="sub">Pick a sample or draw cuts, then run the shell FEM and watch the sheet deform.</span>
+</header>
+<main>
+  <!-- left: samples & history -->
+  <section class="panel" id="left">
+    <div class="tabs">
+      <button id="tabSamples" class="on">Samples</button>
+      <button id="tabRuns">Runs</button>
+      <button id="btnNew">+ New</button>
+    </div>
+    <div id="samples"></div>
+    <div id="runs" hidden></div>
+  </section>
+
+  <!-- centre: editor -->
+  <section class="panel" id="centre">
+    <div class="toolbar">
+      <button data-tool="select" class="on" title="Select and drag shapes (Delete removes)">Select</button>
+      <button data-tool="slit" title="Drag to draw a zero-width cut">Slit</button>
+      <button data-tool="slot" title="Drag to draw a slot (a cut with width; use where cuts meet)">Slot</button>
+      <button data-tool="rect" title="Drag a rectangle">Rectangle</button>
+      <button data-tool="ellipse" title="Drag an ellipse">Ellipse</button>
+      <span class="sep"></span>
+      <label>shape adds</label>
+      <select id="role" style="width:auto"><option value="hole">hole (remove)</option>
+        <option value="solid">solid (add back)</option></select>
+      <label>snap</label>
+      <select id="snap" style="width:auto"><option>0.5</option><option selected>1</option>
+        <option>2</option><option>5</option></select>
+      <span class="sep"></span>
+      <button id="btnDelete">Delete</button>
+      <button id="btnClear">Clear</button>
+    </div>
+    <div id="genBox" hidden>
+      <h3 style="margin-top:0">Generator: <span id="genName"></span></h3>
+      <div class="grid2" id="genParams"></div>
+      <div class="row"><button id="btnToShapes">Edit as shapes</button></div>
+    </div>
+    <div id="canvasWrap"><svg id="canvas"></svg></div>
+    <div class="hint">x is the pulled direction: the left edge (blue) is clamped, the right edge is pulled by Δ.
+      Red = cuts, white = holes, darker grey = solids added inside holes.</div>
+    <h3>Selected shape</h3>
+    <div id="props" class="grid2"></div>
+  </section>
+
+  <!-- right: settings, run, results -->
+  <section class="panel" id="right">
+    <h2>Design</h2>
+    <div class="grid2">
+      <div class="field" style="grid-column: span 2"><label>name</label><input id="name"></div>
+      <div class="field"><label>length L (mm)</label><input id="L" type="number" step="1"></div>
+      <div class="field"><label>width W (mm)</label><input id="W" type="number" step="1"></div>
+      <div class="field"><label>thickness h (mm)</label><input id="h" type="number" step="0.001"></div>
+      <div class="field"><label>Young's modulus E (MPa)</label><input id="E" type="number" step="10"></div>
+      <div class="field"><label>Poisson ν</label><input id="nu" type="number" step="0.01"></div>
+      <div class="field"><label>max stretch Δ/L (%)</label><input id="strain" type="number" step="0.5"></div>
+      <div class="field"><label>load steps</label><input id="steps" type="number" step="5"></div>
+      <div class="field"><label>mesh size at cuts (mm)</label><input id="hcut" type="number" step="0.1"></div>
+    </div>
+    <div class="msgs" id="msgs"></div>
+    <div class="row">
+      <button id="btnBuckle" title="Linear analysis: stiffness and buckling threshold (seconds)">Quick check</button>
+      <button id="btnRun" class="primary" title="Full nonlinear simulation (minutes)">Run FEM</button>
+      <button id="btnExport" title="Laser-cut files">Cut files</button>
+      <button id="btnSpec" title="Download the design as JSON">Spec JSON</button>
+    </div>
+    <div id="job" hidden>
+      <h3>Simulation</h3>
+      <div id="jobMsg" class="hint"></div>
+      <div class="bar"><div id="jobBar"></div></div>
+      <button id="btnCancel">Cancel</button>
+    </div>
+    <div id="quick"></div>
+    <div id="result" class="result"></div>
+  </section>
+</main>
+
+<script>
+// ---------------------------------------------------------------- state
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+let spec = null;          // current design spec (pattern either generator or explicit)
+let shapes = [];          // editable shapes (explicit mode)
+let genPattern = null;    // resolved geometry of a generator pattern (generator mode)
+let tool = "select", selected = -1, drag = null, jobTimer = null, currentJob = null;
+
+const PAD = 6;
+function blankSpec() {
+  return { name: "my_design", sheet: { L: 120, W: 60 },
+           material: { E: 3500, nu: 0.38, h: 0.127 },
+           mesh: { h_cut: 0.6, h_far: 3, refine_dist: [1, 6] },
+           load: { Dmax: 12, steps: 30 }, probes: {}, pattern: { cuts: [], holes: [], solids: [] } };
+}
+
+// ---------------------------------------------------------- geometry
+function rot(x, y, a) { const c = Math.cos(a), s = Math.sin(a); return [x * c - y * s, x * s + y * c]; }
+function shapePolygon(sh) {             // polygon for area shapes (holes / solids)
+  if (sh.type === "rect") {
+    const a = (sh.ang || 0) * Math.PI / 180, hw = sh.w / 2, hh = sh.h / 2;
+    return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => {
+      const [u, v] = rot(x, y, a); return [sh.cx + u, sh.cy + v]; });
+  }
+  if (sh.type === "ellipse") {
+    const a = (sh.ang || 0) * Math.PI / 180, pts = [];
+    for (let i = 0; i < 64; i++) {
+      const t = 2 * Math.PI * i / 64, [u, v] = rot(sh.rx * Math.cos(t), sh.ry * Math.sin(t), a);
+      pts.push([sh.cx + u, sh.cy + v]);
+    }
+    return pts;
+  }
+  if (sh.type === "slot") {
+    const [x0, y0] = sh.p, [x1, y1] = sh.q, len = Math.hypot(x1 - x0, y1 - y0) || 1;
+    const nx = -(y1 - y0) / len * sh.w / 2, ny = (x1 - x0) / len * sh.w / 2;
+    return [[x0 - nx, y0 - ny], [x1 - nx, y1 - ny], [x1 + nx, y1 + ny], [x0 + nx, y0 + ny]];
+  }
+  if (sh.type === "poly") return sh.pts;
+  return null;
+}
+function shapesToPattern() {
+  const pat = { cuts: [], holes: [], solids: [] };
+  for (const sh of shapes) {
+    if (sh.type === "slit") pat.cuts.push([sh.p, sh.q]);
+    else if (sh.type === "polycut") pat.cuts.push(sh.pts);
+    else if (sh.type === "slot") pat.holes.push(shapePolygon(sh));
+    else pat[sh.role === "solid" ? "solids" : "holes"].push(shapePolygon(sh));
+  }
+  return pat;
+}
+function patternToShapes(pat) {
+  const out = [];
+  for (const c of pat.cuts || [])
+    out.push(c.length === 2 ? { type: "slit", p: c[0], q: c[1] } : { type: "polycut", pts: c });
+  for (const h of pat.holes || []) out.push({ type: "poly", role: "hole", pts: h });
+  for (const s of pat.solids || []) out.push({ type: "poly", role: "solid", pts: s });
+  return out;
+}
+const isGenerator = () => spec && spec.pattern && spec.pattern.generator;
+function currentPattern() { return isGenerator() ? (genPattern || { cuts: [], holes: [], solids: [] })
+                                                 : shapesToPattern(); }
+
+// ---------------------------------------------------------- drawing
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function drawPattern(svg, sp, pat, opts = {}) {
+  const L = sp.sheet.L, W = sp.sheet.W, Y = (y) => W - y;
+  svg.setAttribute("viewBox", `${-PAD} ${-PAD} ${L + 2 * PAD} ${W + 2 * PAD}`);
+  svg.innerHTML = "";
+  const ns = opts.thumb ? "" : "non-scaling-stroke";
+  if (!opts.thumb) {                                   // light grid every 10 mm
+    const g = el("g", { stroke: "#eeede9" }, svg);
+    for (let x = 0; x <= L; x += 10) el("line", { x1: x, y1: 0, x2: x, y2: W, "vector-effect": ns }, g);
+    for (let y = 0; y <= W; y += 10) el("line", { x1: 0, y1: Y(y), x2: L, y2: Y(y), "vector-effect": ns }, g);
+  }
+  el("rect", { x: 0, y: 0, width: L, height: W, fill: "var(--sheet)", "fill-opacity": opts.thumb ? 1 : .85,
+               stroke: "#8f8e88", "vector-effect": ns }, svg);
+  const poly = (pts) => pts.map(([x, y]) => `${x},${Y(y)}`).join(" ");
+  const shapesG = el("g", {}, svg);
+  const items = [];
+  (pat.holes || []).forEach((h) => items.push(["hole", h]));
+  (pat.solids || []).forEach((s) => items.push(["solid", s]));
+  for (const [kind, pts] of items)
+    el("polygon", { points: poly(pts), fill: kind === "hole" ? "#fbfbfa" : "var(--solid)",
+                    stroke: "#8f8e88", "stroke-width": opts.thumb ? .3 : 1, "vector-effect": ns }, shapesG);
+  for (const c of pat.cuts || [])
+    el("polyline", { points: poly(c), fill: "none", stroke: "var(--cut)",
+                     "stroke-width": opts.thumb ? 0.9 : 2, "vector-effect": ns }, shapesG);
+  for (const x of [0, L])
+    el("line", { x1: x, y1: -1, x2: x, y2: W + 1, stroke: "var(--clamp)",
+                 "stroke-width": opts.thumb ? 2 : 5, "vector-effect": ns }, svg);
+  return Y;
+}
+function redraw() {
+  const svg = $("canvas");
+  const Y = drawPattern(svg, spec, currentPattern());
+  if (!isGenerator() && selected >= 0 && shapes[selected]) {   // highlight selection
+    const sh = shapes[selected];
+    const pts = sh.type === "slit" ? [sh.p, sh.q] : sh.type === "polycut" ? sh.pts : shapePolygon(sh);
+    const closed = !(sh.type === "slit" || sh.type === "polycut");
+    el(closed ? "polygon" : "polyline", { points: pts.map(([x, y]) => `${x},${Y(y)}`).join(" "),
+      fill: "none", stroke: "var(--sel)", "stroke-width": 3, "vector-effect": "non-scaling-stroke" }, svg);
+  }
+  if (drag && drag.preview) {
+    const pv = drag.preview;
+    const pts = pv.type === "slit" ? [pv.p, pv.q] : shapePolygon(pv);
+    el(pv.type === "slit" ? "polyline" : "polygon", { points: pts.map(([x, y]) => `${x},${Y(y)}`).join(" "),
+      fill: "none", stroke: "var(--sel)", "stroke-width": 2, "stroke-dasharray": "4 3",
+      "vector-effect": "non-scaling-stroke" }, svg);
+  }
+  renderProps();
+}
+
+// ---------------------------------------------------------- editor
+function toMM(evt) {
+  const svg = $("canvas"), pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  const s = parseFloat($("snap").value);
+  const sn = (v) => Math.round(v / s) * s;
+  return [sn(p.x), sn(spec.sheet.W - p.y)];
+}
+function distToSeg(p, a, b) {
+  const [px, py] = p, [ax, ay] = a, [bx, by] = b, dx = bx - ax, dy = by - ay;
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(px - ax - t * dx, py - ay - t * dy);
+}
+function inPoly(p, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function hitTest(p) {
+  for (let i = shapes.length - 1; i >= 0; i--) {
+    const sh = shapes[i];
+    if (sh.type === "slit" && distToSeg(p, sh.p, sh.q) < 1.5) return i;
+    if (sh.type === "polycut") for (let k = 0; k < sh.pts.length - 1; k++)
+      if (distToSeg(p, sh.pts[k], sh.pts[k + 1]) < 1.5) return i;
+    const poly = shapePolygon(sh);
+    if (poly && inPoly(p, poly)) return i;
+  }
+  return -1;
+}
+function moveShape(sh, dx, dy) {
+  const mv = ([x, y]) => [x + dx, y + dy];
+  if (sh.p) { sh.p = mv(sh.p); sh.q = mv(sh.q); }
+  if (sh.pts) sh.pts = sh.pts.map(mv);
+  if (sh.cx !== undefined) { sh.cx += dx; sh.cy += dy; }
+}
+function onDown(evt) {
+  if (isGenerator()) return;
+  const p = toMM(evt);
+  $("canvas").setPointerCapture(evt.pointerId);
+  if (tool === "select") {
+    selected = hitTest(p);
+    drag = selected >= 0 ? { mode: "move", last: p } : null;
+  } else {
+    drag = { mode: "draw", start: p, preview: null };
+  }
+  redraw();
+}
+function onMove(evt) {
+  if (!drag) return;
+  const p = toMM(evt);
+  if (drag.mode === "move") {
+    moveShape(shapes[selected], p[0] - drag.last[0], p[1] - drag.last[1]);
+    drag.last = p; redraw(); return;
+  }
+  const [x0, y0] = drag.start, [x1, y1] = p, role = $("role").value;
+  if (tool === "slit") drag.preview = { type: "slit", p: [x0, y0], q: [x1, y1] };
+  if (tool === "slot") drag.preview = { type: "slot", p: [x0, y0], q: [x1, y1], w: 1 };
+  if (tool === "rect") drag.preview = { type: "rect", role, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2,
+                                        w: Math.abs(x1 - x0), h: Math.abs(y1 - y0), ang: 0 };
+  if (tool === "ellipse") drag.preview = { type: "ellipse", role, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2,
+                                           rx: Math.abs(x1 - x0) / 2, ry: Math.abs(y1 - y0) / 2, ang: 0 };
+  redraw();
+}
+function onUp() {
+  if (drag && drag.mode === "draw" && drag.preview) {
+    const pv = drag.preview;
+    const big = pv.type === "slit" || pv.type === "slot" ? Math.hypot(pv.q[0] - pv.p[0], pv.q[1] - pv.p[1]) > 0.5
+                                                         : (pv.w || pv.rx) > 0.5 && (pv.h || pv.ry) > 0.5;
+    if (big) { shapes.push(pv); selected = shapes.length - 1; }
+  }
+  const changed = drag !== null;
+  drag = null; redraw();
+  if (changed) scheduleValidate();
+}
+function renderProps() {
+  const box = $("props"); box.innerHTML = "";
+  if (isGenerator() || selected < 0 || !shapes[selected]) return;
+  const sh = shapes[selected];
+  const fields = sh.type === "slit" ? [["x0", sh.p, 0], ["y0", sh.p, 1], ["x1", sh.q, 0], ["y1", sh.q, 1]]
+    : sh.type === "slot" ? [["x0", sh.p, 0], ["y0", sh.p, 1], ["x1", sh.q, 0], ["y1", sh.q, 1], ["width", sh, "w"]]
+    : sh.type === "rect" ? [["centre x", sh, "cx"], ["centre y", sh, "cy"], ["width", sh, "w"],
+                            ["height", sh, "h"], ["angle (deg)", sh, "ang"]]
+    : sh.type === "ellipse" ? [["centre x", sh, "cx"], ["centre y", sh, "cy"], ["radius x", sh, "rx"],
+                               ["radius y", sh, "ry"], ["angle (deg)", sh, "ang"]] : [];
+  if (!fields.length) {
+    box.innerHTML = `<div class="hint" style="grid-column: span 2">${sh.type} from a sample:
+      drag to move, Delete to remove.</div>`;
+    return;
+  }
+  for (const [label, obj, key] of fields) {
+    const f = document.createElement("div"); f.className = "field";
+    f.innerHTML = `<label>${label}</label>`;
+    const inp = document.createElement("input"); inp.type = "number"; inp.step = "0.5";
+    inp.value = +(+obj[key]).toFixed(3);
+    inp.oninput = () => { obj[key] = parseFloat(inp.value) || 0; redrawCanvasOnly(); scheduleValidate(); };
+    f.appendChild(inp); box.appendChild(f);
+  }
+  if (sh.role) {
+    const f = document.createElement("div"); f.className = "field";
+    f.innerHTML = `<label>role</label><select><option value="hole">hole</option>
+                   <option value="solid">solid</option></select>`;
+    const s = f.querySelector("select"); s.value = sh.role;
+    s.onchange = () => { sh.role = s.value; redrawCanvasOnly(); scheduleValidate(); };
+    box.appendChild(f);
+  }
+}
+function redrawCanvasOnly() {      // redraw without rebuilding the property inputs (keeps focus)
+  const keep = renderProps; renderProps = () => {}; redraw(); renderProps = keep;
+}
+
+// ---------------------------------------------------------- spec <-> form
+function fillForm() {
+  $("name").value = spec.name; $("L").value = spec.sheet.L; $("W").value = spec.sheet.W;
+  $("h").value = spec.material.h; $("E").value = spec.material.E; $("nu").value = spec.material.nu;
+  $("strain").value = +(100 * spec.load.Dmax / spec.sheet.L).toFixed(3);
+  $("steps").value = spec.load.steps; $("hcut").value = spec.mesh.h_cut;
+}
+function readForm() {
+  spec.name = $("name").value || "design";
+  spec.sheet.L = +$("L").value; spec.sheet.W = +$("W").value;
+  spec.material = { E: +$("E").value, nu: +$("nu").value, h: +$("h").value };
+  spec.load.Dmax = +$("strain").value / 100 * spec.sheet.L;
+  spec.load.steps = Math.max(5, Math.round(+$("steps").value));
+  spec.mesh.h_cut = +$("hcut").value;
+}
+function specForServer() {
+  readForm();
+  const s = JSON.parse(JSON.stringify(spec));
+  if (!isGenerator()) { s.pattern = shapesToPattern(); s.editor_shapes = shapes; }
+  delete s.load.Dmax_over_L;
+  return s;
+}
+function renderGenerator() {
+  $("genBox").hidden = !isGenerator();
+  if (!isGenerator()) return;
+  $("genName").textContent = spec.pattern.generator;
+  const box = $("genParams"); box.innerHTML = "";
+  const params = spec.pattern.params || {};
+  for (const k of Object.keys(params)) {
+    if (typeof params[k] !== "number") continue;
+    const f = document.createElement("div"); f.className = "field";
+    f.innerHTML = `<label>${k}</label>`;
+    const inp = document.createElement("input"); inp.type = "number"; inp.step = "any"; inp.value = params[k];
+    inp.oninput = () => { params[k] = parseFloat(inp.value); scheduleValidate(); };
+    f.appendChild(inp); box.appendChild(f);
+  }
+  if (!box.children.length) box.innerHTML = `<div class="hint">This generator uses its default parameters.</div>`;
+}
+
+// ---------------------------------------------------------- server calls
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return r.json();
+}
+let vTimer = null;
+function scheduleValidate() { clearTimeout(vTimer); vTimer = setTimeout(validate, 350); }
+async function validate() {
+  const res = await api("/api/pattern", specForServer());
+  if (isGenerator() && res.pattern) { genPattern = res.pattern; redraw(); }
+  showMsgs(res.errors && res.errors.length ? res.errors.map((e) => ["err", e])
+                                           : [["ok", "Design is valid."]]);
+  return res.ok;
+}
+function showMsgs(list) {
+  $("msgs").innerHTML = list.map(([k, t]) => `<div class="${k}">${escapeHtml(t)}</div>`).join("");
+}
+function escapeHtml(t) { return String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+const fmt = (v, d = 3) => (v === null || v === undefined) ? "—" : (Math.abs(v) >= 1e4 || (Math.abs(v) < 1e-3 && v !== 0)) ? (+v).toExponential(2) : (+v).toFixed(d);
+
+// ---------------------------------------------------------- samples & runs
+async function loadSamples() {
+  const list = await api("/api/samples");
+  const box = $("samples"); box.innerHTML = "";
+  for (const item of list) {
+    if (item.error) continue;
+    const c = document.createElement("div"); c.className = "card";
+    const s = item.spec, g = s.pattern.generator;
+    c.innerHTML = `<div class="t">${escapeHtml(s.name.replace(/_/g, " "))}</div>
+      <div class="d">${g ? "generator: " + g : "custom shapes"} · ${s.sheet.L}×${s.sheet.W} mm</div>`;
+    const svg = el("svg", {}, c);
+    drawPattern(svg, s, item.pattern, { thumb: true });
+    c.onclick = () => { document.querySelectorAll("#samples .card").forEach((x) => x.classList.remove("active"));
+                        c.classList.add("active"); loadSpec(item.spec, item.pattern); };
+    box.appendChild(c);
+  }
+}
+async function loadRuns() {
+  const list = await api("/api/runs");
+  const box = $("runs");
+  box.innerHTML = list.length ? "" : `<div class="hint">No runs yet.</div>`;
+  for (const r of list) {
+    const c = document.createElement("div"); c.className = "card";
+    c.innerHTML = `<div class="t">${escapeHtml(r.name)}</div>
+      <div class="d">${escapeHtml(r.summary.status || "")} · Δ/L ${fmt(r.summary.strain_final, 4)}</div>
+      <img src="${r.gif}" alt="${escapeHtml(r.name)} animation" loading="lazy">`;
+    c.onclick = () => showResult({ ...r.summary, gif: r.gif, analysis: {} });
+    box.appendChild(c);
+  }
+}
+function loadSpec(s, pattern) {
+  spec = JSON.parse(JSON.stringify(s));
+  spec.load = spec.load || {}; spec.mesh = spec.mesh || blankSpec().mesh;
+  if (spec.load.Dmax === undefined) spec.load.Dmax = (spec.load.Dmax_over_L || 0.1) * spec.sheet.L;
+  selected = -1;
+  if (spec.editor_shapes) { shapes = spec.editor_shapes; delete spec.editor_shapes; }
+  else if (!spec.pattern.generator) shapes = patternToShapes(spec.pattern);
+  else shapes = [];
+  genPattern = pattern || null;
+  fillForm(); renderGenerator(); redraw(); scheduleValidate();
+}
+
+// ---------------------------------------------------------- actions
+async function quickCheck() {
+  $("quick").innerHTML = `<h3>Quick check</h3><div class="hint">meshing and solving the linear problems…</div>`;
+  const r = await api("/api/buckle", specForServer());
+  if (!r.ok) { $("quick").innerHTML = `<h3>Quick check</h3><div class="msgs">${(r.errors || [r.error]).concat(r.log_tail || []).map((e) => `<div class="err">${escapeHtml(e)}</div>`).join("")}</div>`; return; }
+  $("quick").innerHTML = `<h3>Quick check</h3><table class="kv">
+    <tr><td>mesh</td><td>${r.n_cells} triangles</td></tr>
+    <tr><td>stiffness before buckling</td><td>${fmt(r.stiffness_N_per_mm, 2)} N/mm</td></tr>
+    <tr><td>buckles at Δ_c</td><td>${fmt(r.Delta_c_mm, 4)} mm (Δ/L = ${fmt(r.strain_c, 5)})</td></tr>
+    <tr><td>buckling force F_c</td><td>${fmt(r.F_c_N, 3)} N</td></tr>
+    <tr><td>solve time</td><td>${r.seconds} s</td></tr></table>`;
+}
+async function runFEM() {
+  if (!(await validate())) return;
+  const r = await api("/api/simulate", specForServer());
+  if (!r.ok) { showMsgs((r.errors || []).map((e) => ["err", e])); return; }
+  currentJob = r.job; $("job").hidden = false; $("btnRun").disabled = true;
+  $("result").innerHTML = ""; pollJob();
+}
+async function pollJob() {
+  clearTimeout(jobTimer);
+  const j = await api(`/api/jobs/${currentJob}`);
+  const pct = Math.round(100 * (j.progress || 0));
+  $("jobBar").style.width = pct + "%";
+  $("jobMsg").textContent = `${j.name}: ${j.state} — ${j.message}` +
+    (j.state === "running" ? ` · step ${j.steps}, Δ = ${fmt(j.delta, 3)} mm (${pct}%)` : "");
+  if (j.state === "done") { showResult({ ...j.result, gif: j.result.gif }); finishJob(); loadRuns(); return; }
+  if (j.state === "failed" || j.state === "cancelled") {
+    $("result").innerHTML = `<div class="msgs"><div class="err">${escapeHtml(j.message)}</div>${
+      ((j.result && j.result.log_tail) || []).map((l) => `<div class="hint">${escapeHtml(l)}</div>`).join("")}</div>`;
+    finishJob(); return;
+  }
+  jobTimer = setTimeout(pollJob, 2500);
+}
+function finishJob() { $("btnRun").disabled = false; $("btnCancel").disabled = true;
+                       setTimeout(() => { $("job").hidden = true; $("btnCancel").disabled = false; }, 1500); }
+function showResult(r) {
+  const a = r.analysis || {};
+  const angles = Object.entries(r.pair_angles_final || {}).map(([k, v]) =>
+    `<tr><td>${escapeHtml(k)} tilt / in-plane turn</td><td>${fmt(v.tilt_deg, 1)}° / ${fmt(v.turn_deg, 1)}°</td></tr>`).join("");
+  const name = r.name;
+  $("result").innerHTML = `<h3>Result: ${escapeHtml(name)}</h3>
+    <img src="${r.gif}" alt="deformation of ${escapeHtml(name)}">
+    <table class="kv" style="margin-top:8px">
+      <tr><td>status</td><td>${escapeHtml(r.status || "")}</td></tr>
+      <tr><td>buckles at Δ_c</td><td>${fmt(r.Delta_c_mm, 4)} mm</td></tr>
+      <tr><td>final stretch Δ/L</td><td>${fmt(r.strain_final, 4)}</td></tr>
+      <tr><td>max out-of-plane displacement</td><td>${fmt(r.uz_max_final_mm, 2)} mm</td></tr>
+      <tr><td>final force</td><td>${fmt(r.force_N ? r.force_N[r.force_N.length - 1] : null, 3)} N</td></tr>
+      ${a.stretchability !== undefined ? `<tr><td>stretchability (local strain 2%)</td>
+        <td>${fmt(100 * a.stretchability, 2)} %${a.stretchability_note ? " (" + escapeHtml(a.stretchability_note) + ")" : ""}</td></tr>` : ""}
+      ${angles}
+    </table>
+    ${a.files ? `<img src="${a.files[0]}?t=${Date.now()}" alt="stress-strain curve">` : ""}
+    <div class="row"><a href="${r.gif}" download>Download GIF</a>
+      <a href="/files/${encodeURIComponent(name)}/history.npz" download>history.npz</a>
+      <a href="/files/${encodeURIComponent(name)}/spec.json" download>spec.json</a></div>`;
+}
+async function exportCut() {
+  const r = await api("/api/export", specForServer());
+  if (!r.ok) { showMsgs((r.errors || [r.error]).map((e) => ["err", e])); return; }
+  showMsgs([["ok", "Cut files ready: "]]);
+  $("msgs").firstChild.innerHTML += r.files.map((f) => `<a href="${f}" download>${f.split("/").pop()}</a>`).join(" · ");
+}
+function downloadSpec() {
+  const blob = new Blob([JSON.stringify(specForServer(), null, 2)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `${spec.name}.json`; a.click();
+}
+
+// ---------------------------------------------------------- wiring
+document.querySelectorAll("[data-tool]").forEach((b) => b.onclick = () => {
+  tool = b.dataset.tool;
+  document.querySelectorAll("[data-tool]").forEach((x) => x.classList.toggle("on", x === b));
+});
+const cv = $("canvas");
+cv.addEventListener("pointerdown", onDown); cv.addEventListener("pointermove", onMove);
+cv.addEventListener("pointerup", onUp);
+$("btnDelete").onclick = () => { if (selected >= 0) { shapes.splice(selected, 1); selected = -1; redraw(); scheduleValidate(); } };
+$("btnClear").onclick = () => { if (isGenerator()) return; shapes = []; selected = -1; redraw(); scheduleValidate(); };
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Delete" || e.key === "Backspace") && document.activeElement.tagName !== "INPUT") $("btnDelete").onclick();
+});
+$("btnToShapes").onclick = () => {
+  shapes = patternToShapes(genPattern || { cuts: [], holes: [], solids: [] });
+  spec.pattern = { cuts: [], holes: [], solids: [] }; spec.name = spec.name + "_edit";
+  fillForm(); renderGenerator(); redraw(); scheduleValidate();
+};
+["name", "L", "W", "h", "E", "nu", "strain", "steps", "hcut"].forEach((id) =>
+  $(id).addEventListener("input", () => { readForm(); redraw(); scheduleValidate(); }));
+$("btnBuckle").onclick = quickCheck; $("btnRun").onclick = runFEM;
+$("btnExport").onclick = exportCut; $("btnSpec").onclick = downloadSpec;
+$("btnCancel").onclick = () => currentJob && api(`/api/jobs/${currentJob}/cancel`, {});
+$("btnNew").onclick = () => { loadSpec(blankSpec()); };
+$("tabSamples").onclick = () => { $("samples").hidden = false; $("runs").hidden = true;
+  $("tabSamples").classList.add("on"); $("tabRuns").classList.remove("on"); };
+$("tabRuns").onclick = () => { $("samples").hidden = true; $("runs").hidden = false;
+  $("tabRuns").classList.add("on"); $("tabSamples").classList.remove("on"); loadRuns(); };
+
+loadSpec(blankSpec());
+loadSamples();
+</script>
+</body>
+</html>
