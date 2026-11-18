@@ -1,0 +1,50 @@
+mesh {'triangles': 29668, 'nodes': 63504, 'cut_pieces': 0, 'cut_edges': 0, 'seam_nodes': 73, 'R': 26.46378698024602} C=166.277 Lz=27.00  2.2s
+dofs 190512 imperfection None
+free edge length 1778.954 mm, expected 1778.954 (2 faces per cut + 2 rings)
+libffcx_forms_130f497071313094849f6ede9794268501c9ac25.c: In function ‘tabulate_tensor_integral_220456a79a975e76b1413c6a94eb523016329334’:
+libffcx_forms_130f497071313094849f6ede9794268501c9ac25.c:20128:6: note: variable tracking size limit exceeded with ‘-fvar-tracking-assignments’, retrying without
+20128 | void tabulate_tensor_integral_220456a79a975e76b1413c6a94eb523016329334(double* restrict A,
+      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  roll c=0.80 ok=True
+  roll c=0.60 ok=True
+  roll c=0.40 ok=True
+  roll c=0.20 ok=True
+  roll c=0.00 ok=True
+  rolled: length change -0.1718 mm, axial force -2.73e-02 N
+  eps=0.0025 F=0.1237 N sigma=9.76 kPa  84s
+  eps=0.0050 F=0.2707 N sigma=21.37 kPa  110s
+  eps=0.0075 F=0.4136 N sigma=32.64 kPa  135s
+  eps=0.0100 F=0.5517 N sigma=43.54 kPa  159s
+  eps=0.0125 F=0.6848 N sigma=54.05 kPa  183s
+  eps=0.0150 F=0.8124 N sigma=64.12 kPa  207s
+  eps=0.0175 F=0.9340 N sigma=73.72 kPa  232s
+  eps=0.0200 F=1.0482 N sigma=82.73 kPa  260s
+  eps=0.0225 F=1.1507 N sigma=90.82 kPa  301s
+  eps=0.0250 F=1.2245 N sigma=96.65 kPa  340s
+  eps=0.0275 F=1.2597 N sigma=99.42 kPa  374s
+  eps=0.0300 F=1.2854 N sigma=101.45 kPa  407s
+  eps=0.0325 F=1.3107 N sigma=103.45 kPa  437s
+  eps=0.0350 F=1.3370 N sigma=105.52 kPa  467s
+  eps=0.0375 F=1.3652 N sigma=107.75 kPa  492s
+  eps=0.0400 F=1.3958 N sigma=110.17 kPa  519s
+  eps=0.0425 F=1.4291 N sigma=112.79 kPa  544s
+  eps=0.0450 F=1.4647 N sigma=115.60 kPa  570s
+  eps=0.0475 F=1.5022 N sigma=118.56 kPa  596s
+  eps=0.0500 F=1.5412 N sigma=121.64 kPa  620s
+  eps=0.0525 F=1.5812 N sigma=124.80 kPa  644s
+  eps=0.0550 F=1.6216 N sigma=127.98 kPa  669s
+  eps=0.0575 F=1.6619 N sigma=131.16 kPa  693s
+  eps=0.0600 F=1.7015 N sigma=134.29 kPa  717s
+  eps=0.0625 F=1.7401 N sigma=137.33 kPa  741s
+  eps=0.0650 F=1.7769 N sigma=140.24 kPa  765s
+  eps=0.0675 F=1.8115 N sigma=142.98 kPa  790s
+  eps=0.0700 F=1.8437 N sigma=145.51 kPa  820s
+  eps=0.0725 F=1.8737 N sigma=147.88 kPa  853s
+  eps=0.0750 F=1.9025 N sigma=150.15 kPa  883s
+  eps=0.0775 F=1.9315 N sigma=152.45 kPa  913s
+  eps=0.0800 F=1.9616 N sigma=154.82 kPa  955s
+  eps=0.0813 F=1.9768 N sigma=156.02 kPa  1191s
+  eps=0.0819 F=1.9843 N sigma=156.61 kPa  1396s
+  eps=0.0822 F=1.9879 N sigma=156.90 kPa  1608s
+  eps=0.0823 F=2.1693 N sigma=171.21 kPa (damped)  1983s
+  eps=0.0825 F=2.2275 N sigma=175.80 kPa (damped)  2177s

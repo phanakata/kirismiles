@@ -1,0 +1,50 @@
+mesh {'triangles': 61503, 'nodes': 134519, 'cut_pieces': 0, 'cut_edges': 0, 'seam_nodes': 213, 'R': 26.46378698024602} C=166.277 Lz=99.00  6.7s
+dofs 403557 imperfection None
+free edge length 6118.154 mm, expected 6118.154 (2 faces per cut + 2 rings)
+  roll c=0.80 ok=True
+  roll c=0.60 ok=True
+  roll c=0.40 ok=True
+  roll c=0.20 ok=True
+  roll c=0.00 ok=True
+  rolled: length change -0.8987 mm, axial force -4.86e-03 N
+  eps=0.0025 F=0.0977 N sigma=7.71 kPa  62s
+  eps=0.0050 F=0.1984 N sigma=15.66 kPa  128s
+  eps=0.0075 F=0.2970 N sigma=23.44 kPa  177s
+  eps=0.0100 F=0.3933 N sigma=31.04 kPa  254s
+  eps=0.0125 F=0.4870 N sigma=38.44 kPa  318s
+  eps=0.0150 F=0.5782 N sigma=45.64 kPa  368s
+  eps=0.0175 F=0.6666 N sigma=52.61 kPa  417s
+  eps=0.0200 F=0.7522 N sigma=59.37 kPa  472s
+  eps=0.0225 F=0.8349 N sigma=65.89 kPa  525s
+  eps=0.0250 F=0.9144 N sigma=72.17 kPa  584s
+  eps=0.0275 F=0.9906 N sigma=78.19 kPa  633s
+  eps=0.0300 F=1.0632 N sigma=83.91 kPa  692s
+  eps=0.0325 F=1.1316 N sigma=89.31 kPa  754s
+  eps=0.0350 F=1.1945 N sigma=94.27 kPa  821s
+  eps=0.0375 F=1.2490 N sigma=98.58 kPa  949s
+  eps=0.0400 F=1.2753 N sigma=100.66 kPa  1091s
+  eps=0.0425 F=1.2152 N sigma=95.91 kPa  1378s
+  eps=0.0450 F=1.1885 N sigma=93.81 kPa  1551s
+  eps=0.0475 F=1.1718 N sigma=92.48 kPa  1623s
+  eps=0.0500 F=1.1599 N sigma=91.54 kPa  1694s
+  eps=0.0525 F=1.1511 N sigma=90.85 kPa  1766s
+  eps=0.0550 F=1.1437 N sigma=90.27 kPa  1838s
+  eps=0.0575 F=1.1385 N sigma=89.85 kPa  1910s
+  eps=0.0600 F=1.1339 N sigma=89.49 kPa  1982s
+  eps=0.0625 F=1.1298 N sigma=89.17 kPa  2053s
+  eps=0.0650 F=1.1270 N sigma=88.95 kPa  2114s
+  eps=0.0675 F=1.1244 N sigma=88.75 kPa  2185s
+  eps=0.0700 F=1.1218 N sigma=88.54 kPa  2256s
+  eps=0.0725 F=1.1201 N sigma=88.40 kPa  2316s
+  eps=0.0750 F=1.1188 N sigma=88.30 kPa  2388s
+  eps=0.0775 F=1.1171 N sigma=88.17 kPa  2460s
+  eps=0.0800 F=1.1159 N sigma=88.07 kPa  2531s
+  eps=0.0825 F=1.1153 N sigma=88.02 kPa  2603s
+  eps=0.0850 F=1.1144 N sigma=87.95 kPa  2675s
+  eps=0.0875 F=1.1133 N sigma=87.87 kPa  2751s
+  eps=0.0900 F=1.1130 N sigma=87.84 kPa  2823s
+  eps=0.0925 F=1.1127 N sigma=87.82 kPa  2902s
+  eps=0.0950 F=1.1119 N sigma=87.75 kPa  2997s
+  eps=0.0975 F=1.1114 N sigma=87.71 kPa  3068s
+  eps=0.1000 F=1.1115 N sigma=87.72 kPa  3128s
+wrote results/tube/tri_n8_rows8_d0.75_k0.1_medium

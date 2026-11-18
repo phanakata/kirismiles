@@ -1,0 +1,22 @@
+mesh {'triangles': 14489, 'nodes': 31949, 'cut_pieces': 0, 'cut_edges': 0, 'seam_nodes': 34, 'R': 26.46378698024602} C=166.277 Lz=12.00  2.3s
+dofs 95847 imperfection {'amp': 0.007620000000000001, 'seed': 0, 'applied': 0.007620000000000001}
+period area 1959.344 mm^2 (curved), expected 1959.323 (flat); ghost cells 184, tied nodes 936
+  roll c=0.80 ok=True
+  roll c=0.60 ok=True
+  roll c=0.40 ok=True
+  roll c=0.20 ok=True
+  roll c=0.00 ok=True
+  rolled: length change -0.1253 mm, axial force 4.03e-12 N
+  eps=0.0025 F=0.0891 N sigma=7.03 kPa  25s
+  eps=0.0050 F=0.1769 N sigma=13.96 kPa  48s
+  eps=0.0075 F=0.2630 N sigma=20.76 kPa  78s
+  eps=0.0081 F=0.2843 N sigma=22.44 kPa  286s
+  eps=0.0088 F=0.3054 N sigma=24.10 kPa  315s
+  eps=0.0100 F=0.3474 N sigma=27.41 kPa  333s
+  eps=0.0112 F=0.3888 N sigma=30.69 kPa  356s
+  eps=0.0125 F=0.4297 N sigma=33.92 kPa  466s
+  eps=0.0137 F=0.4702 N sigma=37.11 kPa  489s
+  eps=0.0150 F=0.5101 N sigma=40.26 kPa  600s
+  eps=0.0162 F=0.5494 N sigma=43.36 kPa  623s
+  eps=0.0175 F=0.5882 N sigma=46.42 kPa  733s
+  eps=0.0187 F=0.6264 N sigma=49.44 kPa  766s

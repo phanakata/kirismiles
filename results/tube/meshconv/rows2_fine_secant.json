@@ -1,0 +1,279 @@
+{
+ "args": {
+  "n": 8,
+  "rows": 2,
+  "delta": 0.75,
+  "eps": 0.1,
+  "deps": 0.0025,
+  "h_far": 1.5,
+  "h_tip": 0.2,
+  "h_cut": 0.5,
+  "kerf": 0.1,
+  "uncut": false,
+  "periodic": false,
+  "imperfection": 0.0,
+  "imp_seed": 0,
+  "predictor": "secant",
+  "mesh_only": false,
+  "out": "results/tube/meshconv/rows2_fine_secant"
+ },
+ "mesh": {
+  "triangles": 29668,
+  "nodes": 63504,
+  "cut_pieces": 0,
+  "cut_edges": 0,
+  "seam_nodes": 73,
+  "R": 26.46378698024602
+ },
+ "C": 166.27687752661222,
+ "Lz": 27.0,
+ "Lz_rolled": 26.828153462545643,
+ "F_rolled": -0.02727299586361515,
+ "provenance": {
+  "code_version": "28a75dd-dirty",
+  "git_commit": "28a75dd91f7a8c6654e6b2e2f243952a60a95a9e",
+  "dirty": true,
+  "changed_files": [
+   "irigami/jobs.py",
+   "scripts/kirigami_cli.py",
+   "kirigami/kdb.py",
+   "kirigami/provenance.py",
+   "kirigami/tube.py",
+   "scripts/build_kdb.py",
+   "scripts/compare_tube_runs.py",
+   "scripts/plot_tube_benchmark.py",
+   "scripts/plot_tube_triangular.py",
+   "scripts/tube_benchmark.py",
+   "scripts/tube_triangular.py"
+  ],
+  "source_hash": "38263ad70e5d8d8f8607d7a2591dc7db35663cf0",
+  "image": "dolfinx/dolfinx:v0.9.0",
+  "image_id": null,
+  "python": "3.12.3",
+  "recorded": "2026-11-17T16:37:49+00:00"
+ },
+ "rows": [
+  {
+   "eps": 0.0025,
+   "force": 0.1236561428354239,
+   "sigma_kPa": 9.759529111026737,
+   "damped": false
+  },
+  {
+   "eps": 0.005,
+   "force": 0.27072688834726294,
+   "sigma_kPa": 21.367049686155127,
+   "damped": false
+  },
+  {
+   "eps": 0.0075,
+   "force": 0.4135568862498607,
+   "sigma_kPa": 32.63987035235954,
+   "damped": false
+  },
+  {
+   "eps": 0.01,
+   "force": 0.5517128267338762,
+   "sigma_kPa": 43.54379224493832,
+   "damped": false
+  },
+  {
+   "eps": 0.0125,
+   "force": 0.6848038849341613,
+   "sigma_kPa": 54.04796961242885,
+   "damped": false
+  },
+  {
+   "eps": 0.015000000000000001,
+   "force": 0.8124278636147926,
+   "sigma_kPa": 64.12065914194457,
+   "damped": false
+  },
+  {
+   "eps": 0.0175,
+   "force": 0.9339910257720879,
+   "sigma_kPa": 73.71500029393722,
+   "damped": false
+  },
+  {
+   "eps": 0.02,
+   "force": 1.0481814870740795,
+   "sigma_kPa": 82.72745293659804,
+   "damped": false
+  },
+  {
+   "eps": 0.0225,
+   "force": 1.1507061192989407,
+   "sigma_kPa": 90.81918303469392,
+   "damped": false
+  },
+  {
+   "eps": 0.024999999999999998,
+   "force": 1.2245455271108514,
+   "sigma_kPa": 96.64693921046617,
+   "damped": false
+  },
+  {
+   "eps": 0.027499999999999997,
+   "force": 1.2597234757219506,
+   "sigma_kPa": 99.42334971190932,
+   "damped": false
+  },
+  {
+   "eps": 0.029999999999999995,
+   "force": 1.2854366491222629,
+   "sigma_kPa": 101.45275527626707,
+   "damped": false
+  },
+  {
+   "eps": 0.032499999999999994,
+   "force": 1.310704048654302,
+   "sigma_kPa": 103.44697825329364,
+   "damped": false
+  },
+  {
+   "eps": 0.034999999999999996,
+   "force": 1.3369901003749147,
+   "sigma_kPa": 105.52159809100527,
+   "damped": false
+  },
+  {
+   "eps": 0.0375,
+   "force": 1.365190120255432,
+   "sigma_kPa": 107.74727737102077,
+   "damped": false
+  },
+  {
+   "eps": 0.04,
+   "force": 1.3958430850541625,
+   "sigma_kPa": 110.1665546946766,
+   "damped": false
+  },
+  {
+   "eps": 0.0425,
+   "force": 1.429066236052951,
+   "sigma_kPa": 112.7886832998382,
+   "damped": false
+  },
+  {
+   "eps": 0.045000000000000005,
+   "force": 1.464654756515248,
+   "sigma_kPa": 115.59749807851378,
+   "damped": false
+  },
+  {
+   "eps": 0.04750000000000001,
+   "force": 1.502211320817361,
+   "sigma_kPa": 118.56164020855296,
+   "damped": false
+  },
+  {
+   "eps": 0.05000000000000001,
+   "force": 1.5412419275616847,
+   "sigma_kPa": 121.64212075733764,
+   "damped": false
+  },
+  {
+   "eps": 0.05250000000000001,
+   "force": 1.5812162448211837,
+   "sigma_kPa": 124.79708341460514,
+   "damped": false
+  },
+  {
+   "eps": 0.055000000000000014,
+   "force": 1.6216020853066233,
+   "sigma_kPa": 127.98452543611074,
+   "damped": false
+  },
+  {
+   "eps": 0.057500000000000016,
+   "force": 1.6618794989981842,
+   "sigma_kPa": 131.1634099009353,
+   "damped": false
+  },
+  {
+   "eps": 0.06000000000000002,
+   "force": 1.7015369437370673,
+   "sigma_kPa": 134.29336347641743,
+   "damped": false
+  },
+  {
+   "eps": 0.06250000000000001,
+   "force": 1.7400547562404043,
+   "sigma_kPa": 137.3333718722777,
+   "damped": false
+  },
+  {
+   "eps": 0.06500000000000002,
+   "force": 1.7768942276256035,
+   "sigma_kPa": 140.24091762920142,
+   "damped": false
+  },
+  {
+   "eps": 0.06750000000000002,
+   "force": 1.8115423398988146,
+   "sigma_kPa": 142.9755109346272,
+   "damped": false
+  },
+  {
+   "eps": 0.07000000000000002,
+   "force": 1.8437022549598425,
+   "sigma_kPa": 145.513723918223,
+   "damped": false
+  },
+  {
+   "eps": 0.07250000000000002,
+   "force": 1.8736542836090309,
+   "sigma_kPa": 147.87768003745205,
+   "damped": false
+  },
+  {
+   "eps": 0.07500000000000002,
+   "force": 1.902465061135425,
+   "sigma_kPa": 150.15156320680165,
+   "damped": false
+  },
+  {
+   "eps": 0.07750000000000003,
+   "force": 1.9315265255118335,
+   "sigma_kPa": 152.44523177099185,
+   "damped": false
+  },
+  {
+   "eps": 0.08000000000000003,
+   "force": 1.961605370389967,
+   "sigma_kPa": 154.8191968283113,
+   "damped": false
+  },
+  {
+   "eps": 0.08125000000000003,
+   "force": 1.9768398126955737,
+   "sigma_kPa": 156.0215712495296,
+   "damped": false
+  },
+  {
+   "eps": 0.08187500000000003,
+   "force": 1.9843176496257062,
+   "sigma_kPa": 156.611757596392,
+   "damped": false
+  },
+  {
+   "eps": 0.08218750000000002,
+   "force": 1.9879219355799245,
+   "sigma_kPa": 156.89622493370396,
+   "damped": false
+  },
+  {
+   "eps": 0.08234375000000002,
+   "force": 2.16927140935372,
+   "sigma_kPa": 171.2091852766471,
+   "damped": true
+  },
+  {
+   "eps": 0.08250000000000002,
+   "force": 2.2274806576951334,
+   "sigma_kPa": 175.80333515624585,
+   "damped": true
+  }
+ ]
+}

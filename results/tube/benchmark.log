@@ -1,0 +1,36 @@
+libffcx_forms_0f1be0a04819936dce162b7a4f4f84871b03fd20.c: In function ‘tabulate_tensor_integral_f90206f41226b23e839b50bc895c39a0ff1e9e43’:
+libffcx_forms_0f1be0a04819936dce162b7a4f4f84871b03fd20.c:12005:6: note: variable tracking size limit exceeded with ‘-fvar-tracking-assignments’, retrying without
+12005 | void tabulate_tensor_integral_f90206f41226b23e839b50bc895c39a0ff1e9e43(double* restrict A,
+      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  free n=4 eps=0.000 R/R0=1.00000 F=-0.0000 m_ss=0.00000
+  free n=4 eps=0.025 R/R0=0.98982 F=410.9072 m_ss=0.00025
+  free n=4 eps=0.050 R/R0=0.97929 F=852.2519 m_ss=0.00052
+  free n=4 eps=0.075 R/R0=0.96838 F=1324.7766 m_ss=0.00079
+  free n=4 eps=0.100 R/R0=0.95708 F=1829.2237 m_ss=0.00107
+  free n=4 eps=0.125 R/R0=0.94538 F=2366.3355 m_ss=0.00136
+  free n=4 eps=0.150 R/R0=0.93327 F=2936.8545 m_ss=0.00166
+  roll n=4 c=1.00 m_ss=0.00000 R/R0=1.00000
+  roll n=4 c=0.75 m_ss=-0.00622 R/R0=1.00000
+  roll n=4 c=0.50 m_ss=-0.01244 R/R0=1.00000
+  roll n=4 c=0.25 m_ss=-0.01866 R/R0=0.99999
+  roll n=4 c=0.00 m_ss=-0.02488 R/R0=0.99999
+  rolled n=4 eps=0.000 R/R0=0.99999 F=0.0373 m_ss=-0.02488
+  rolled n=4 eps=0.025 R/R0=0.98981 F=410.8446 m_ss=-0.02463
+  rolled n=4 eps=0.050 R/R0=0.97928 F=852.1856 m_ss=-0.02437
+  rolled n=4 eps=0.075 R/R0=0.96837 F=1324.7076 m_ss=-0.02410
+  rolled n=4 eps=0.100 R/R0=0.95707 F=1829.1521 m_ss=-0.02382
+  rolled n=4 eps=0.125 R/R0=0.94537 F=2366.2613 m_ss=-0.02352
+  rolled n=4 eps=0.150 R/R0=0.93326 F=2936.7775 m_ss=-0.02322
+  roll n=8 c=1.00 m_ss=0.00000 R/R0=1.00000
+  roll n=8 c=0.75 m_ss=-0.00311 R/R0=1.00000
+  roll n=8 c=0.50 m_ss=-0.00622 R/R0=1.00000
+  roll n=8 c=0.25 m_ss=-0.00933 R/R0=1.00000
+  roll n=8 c=0.00 m_ss=-0.01244 R/R0=1.00000
+  rolled n=8 eps=0.000 R/R0=1.00000 F=0.1093 m_ss=-0.01244
+  rolled n=8 eps=0.025 R/R0=0.98982 F=821.7821 m_ss=-0.01231
+  rolled n=8 eps=0.050 R/R0=0.97928 F=1704.4686 m_ss=-0.01218
+  rolled n=8 eps=0.075 R/R0=0.96837 F=2649.5154 m_ss=-0.01205
+  rolled n=8 eps=0.100 R/R0=0.95708 F=3658.4070 m_ss=-0.01191
+  rolled n=8 eps=0.125 R/R0=0.94538 F=4732.6278 m_ss=-0.01176
+  rolled n=8 eps=0.150 R/R0=0.93327 F=5873.6628 m_ss=-0.01161
+wrote results/tube/benchmark.json

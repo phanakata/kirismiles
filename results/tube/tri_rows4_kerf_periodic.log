@@ -1,0 +1,53 @@
+mesh {'triangles': 57057, 'nodes': 123187, 'cut_pieces': 0, 'cut_edges': 0, 'seam_nodes': 136, 'R': 26.46378698024602} C=166.277 Lz=48.00  5.1s
+dofs 369561
+period area 7837.290 mm^2 (curved), expected 7837.290 (flat); ghost cells 184, tied nodes 936
+  roll c=0.80 ok=True
+  roll c=0.60 ok=True
+  roll c=0.40 ok=True
+  roll c=0.20 ok=True
+  roll c=0.00 ok=True
+  rolled: length change -0.4999 mm, axial force 1.99e-11 N
+  eps=0.0013 F=0.0447 N sigma=3.53 kPa  852s
+  eps=0.0037 F=0.1332 N sigma=10.52 kPa  1017s
+  eps=0.0063 F=0.2203 N sigma=17.39 kPa  1151s
+  eps=0.0088 F=0.3056 N sigma=24.12 kPa  1279s
+  eps=0.0113 F=0.3890 N sigma=30.71 kPa  1586s
+  eps=0.0138 F=0.4705 N sigma=37.13 kPa  2033s
+  eps=0.0163 F=0.5498 N sigma=43.39 kPa  2413s
+  eps=0.0187 F=0.6269 N sigma=49.48 kPa  2668s
+  eps=0.0212 F=0.7018 N sigma=55.39 kPa  2966s
+  eps=0.0237 F=0.7743 N sigma=61.11 kPa  3307s
+  eps=0.0241 F=0.7832 N sigma=61.81 kPa  5155s
+  eps=0.0244 F=0.7920 N sigma=62.51 kPa  5717s
+  eps=0.0247 F=0.8008 N sigma=63.21 kPa  6259s
+  eps=0.0250 F=0.8096 N sigma=63.90 kPa  6816s
+  eps=0.0253 F=0.8183 N sigma=64.59 kPa  7340s
+  eps=0.0256 F=0.8271 N sigma=65.27 kPa  7870s
+  eps=0.0259 F=0.8357 N sigma=65.96 kPa  8404s
+  eps=0.0262 F=0.8443 N sigma=66.64 kPa  8934s
+  eps=0.0266 F=0.8529 N sigma=67.32 kPa  9465s
+  eps=0.0269 F=0.8615 N sigma=67.99 kPa  10002s
+  eps=0.0272 F=0.8700 N sigma=68.66 kPa  10532s
+  eps=0.0275 F=0.8784 N sigma=69.33 kPa  11063s
+  eps=0.0278 F=0.8869 N sigma=70.00 kPa  11588s
+  eps=0.0281 F=0.8953 N sigma=70.66 kPa  12121s
+  eps=0.0283 F=1.8436 N sigma=145.51 kPa (damped)  13508s
+  eps=0.0284 F=2.0621 N sigma=162.75 kPa (damped)  14470s
+  eps=0.0286 F=2.1794 N sigma=172.01 kPa (damped)  15408s
+  eps=0.0289 F=0.9160 N sigma=72.30 kPa  15611s
+  eps=0.0291 F=1.8646 N sigma=147.17 kPa (damped)  16950s
+  eps=0.0292 F=2.0828 N sigma=164.39 kPa (damped)  17853s
+  eps=0.0294 F=2.1996 N sigma=173.60 kPa (damped)  18757s
+  eps=0.0295 F=2.2714 N sigma=179.27 kPa (damped)  19663s
+  eps=0.0297 F=2.3205 N sigma=183.15 kPa (damped)  20571s
+  eps=0.0298 F=2.3575 N sigma=186.06 kPa (damped)  21471s
+  eps=0.0300 F=2.3873 N sigma=188.42 kPa (damped)  22374s
+  eps=0.0302 F=2.4127 N sigma=190.43 kPa (damped)  23286s
+  eps=0.0303 F=2.4353 N sigma=192.20 kPa (damped)  24218s
+  eps=0.0305 F=2.4558 N sigma=193.82 kPa (damped)  25125s
+  eps=0.0306 F=2.4748 N sigma=195.32 kPa (damped)  26030s
+  eps=0.0308 F=2.4925 N sigma=196.72 kPa (damped)  26930s
+  eps=0.0309 F=2.5093 N sigma=198.05 kPa (damped)  27839s
+  eps=0.0311 F=2.5253 N sigma=199.31 kPa (damped)  28745s
+  eps=0.0312 F=2.5405 N sigma=200.51 kPa (damped)  29657s
+  eps=0.0314 F=2.5551 N sigma=201.66 kPa (damped)  30561s

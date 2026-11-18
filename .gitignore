@@ -43,3 +43,7 @@ results/configs/designs_summary.json
 # one-off development scripts
 scripts/recover_forces.py
 scripts/smoke_test.py
+
+# kirigami shell: paper-only figure and memory traces
+results/tube/fig_shell.png
+*.mem

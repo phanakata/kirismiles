@@ -1,0 +1,192 @@
+mesh {'triangles': 30596, 'nodes': 67672, 'cut_pieces': 0, 'cut_edges': 0, 'seam_nodes': 104, 'R': 26.46378698024602} C=166.277 Lz=48.00  3.2s
+dofs 203016 imperfection {'amp': 0.0381, 'seed': 0, 'applied': 0.038099999999999995}
+period area 7837.488 mm^2 (curved), expected 7837.290 (flat); ghost cells 144, tied nodes 736
+  roll c=0.80 ok=True
+  roll c=0.60 ok=True
+  roll c=0.40 ok=True
+  roll c=0.20 ok=True
+  roll c=0.00 ok=True
+  rolled: length change -0.4882 mm, axial force 1.44e-11 N
+  eps=0.0025 F=0.0910 N sigma=7.19 kPa  63s
+  eps=0.0050 F=0.1806 N sigma=14.26 kPa  130s
+  eps=0.0075 F=0.2685 N sigma=21.19 kPa  190s
+  eps=0.0100 F=0.3546 N sigma=27.99 kPa  251s
+  eps=0.0125 F=0.4387 N sigma=34.63 kPa  335s
+  eps=0.0150 F=0.5207 N sigma=41.10 kPa  413s
+  eps=0.0163 F=0.5609 N sigma=44.27 kPa  670s
+  eps=0.0175 F=0.6006 N sigma=47.40 kPa  713s
+  eps=0.0200 F=0.6781 N sigma=53.52 kPa  826s
+  eps=0.0213 F=0.7160 N sigma=56.51 kPa  1060s
+  eps=0.0225 F=0.7533 N sigma=59.46 kPa  1109s
+  eps=0.0250 F=0.8262 N sigma=65.20 kPa  1229s
+  eps=0.0275 F=0.8965 N sigma=70.76 kPa  1390s
+  eps=0.0300 F=0.9642 N sigma=76.10 kPa  1558s
+  eps=0.0312 F=0.9971 N sigma=78.69 kPa  1785s
+  eps=0.0325 F=1.0292 N sigma=81.23 kPa  1834s
+  eps=0.0350 F=1.0911 N sigma=86.11 kPa  1972s
+  eps=0.0363 F=1.1207 N sigma=88.45 kPa  2199s
+  eps=0.0375 F=1.1495 N sigma=90.72 kPa  2247s
+  eps=0.0388 F=1.1772 N sigma=92.91 kPa  2474s
+  eps=0.0400 F=1.2037 N sigma=95.00 kPa  2522s
+  eps=0.0425 F=1.2523 N sigma=98.84 kPa  2671s
+  eps=0.0438 F=1.2737 N sigma=100.53 kPa  2929s
+  eps=0.0450 F=1.2906 N sigma=101.86 kPa  3000s
+  eps=0.0475 F=1.2824 N sigma=101.21 kPa  3143s
+  eps=0.0488 F=1.2740 N sigma=100.55 kPa  3382s
+  eps=0.0500 F=1.2675 N sigma=100.03 kPa  3442s
+  eps=0.0513 F=1.2625 N sigma=99.64 kPa  3692s
+  eps=0.0525 F=1.2588 N sigma=99.35 kPa  3788s
+  eps=0.0528 F=1.2580 N sigma=99.29 kPa  4376s
+  eps=0.0531 F=1.2573 N sigma=99.23 kPa  4424s
+  eps=0.0534 F=1.2567 N sigma=99.18 kPa  4652s
+  eps=0.0538 F=1.2561 N sigma=99.14 kPa  4700s
+  eps=0.0541 F=1.2556 N sigma=99.09 kPa  4927s
+  eps=0.0544 F=1.2551 N sigma=99.06 kPa  4975s
+  eps=0.0547 F=1.2546 N sigma=99.02 kPa  5201s
+  eps=0.0550 F=1.2542 N sigma=98.99 kPa  5250s
+  eps=0.0553 F=1.2538 N sigma=98.96 kPa  5476s
+  eps=0.0556 F=1.2534 N sigma=98.93 kPa  5536s
+  eps=0.0558 F=1.2533 N sigma=98.91 kPa  5941s
+  eps=0.0559 F=2.1594 N sigma=170.43 kPa (damped)  6143s
+  eps=0.0561 F=1.2429 N sigma=98.09 kPa  6286s
+  eps=0.0564 F=1.2422 N sigma=98.04 kPa  6334s
+  eps=0.0567 F=1.2416 N sigma=97.99 kPa  6381s
+  eps=0.0570 F=1.2410 N sigma=97.95 kPa  6607s
+  eps=0.0573 F=1.2405 N sigma=97.90 kPa  6656s
+  eps=0.0577 F=1.2399 N sigma=97.86 kPa  6882s
+  eps=0.0580 F=1.2395 N sigma=97.82 kPa  6930s
+  eps=0.0583 F=1.2390 N sigma=97.79 kPa  7156s
+  eps=0.0586 F=1.2386 N sigma=97.76 kPa  7204s
+  eps=0.0589 F=1.2382 N sigma=97.73 kPa  7431s
+  eps=0.0592 F=1.2378 N sigma=97.69 kPa  7491s
+  eps=0.0595 F=1.2374 N sigma=97.66 kPa  7741s
+  eps=0.0597 F=1.2262 N sigma=96.78 kPa  8057s
+  eps=0.0598 F=1.2259 N sigma=96.75 kPa  8093s
+  eps=0.0602 F=1.2253 N sigma=96.70 kPa  8141s
+  eps=0.0605 F=1.2247 N sigma=96.66 kPa  8189s
+  eps=0.0608 F=1.2241 N sigma=96.61 kPa  8415s
+  eps=0.0611 F=1.2236 N sigma=96.57 kPa  8464s
+  eps=0.0614 F=1.2231 N sigma=96.53 kPa  8689s
+  eps=0.0617 F=1.2226 N sigma=96.50 kPa  8737s
+  eps=0.0620 F=1.2222 N sigma=96.46 kPa  8963s
+  eps=0.0623 F=1.2218 N sigma=96.43 kPa  9011s
+  eps=0.0627 F=1.2214 N sigma=96.40 kPa  9237s
+  eps=0.0630 F=1.2210 N sigma=96.37 kPa  9285s
+  eps=0.0633 F=1.2206 N sigma=96.34 kPa  9511s
+  eps=0.0636 F=1.2203 N sigma=96.31 kPa  9559s
+  eps=0.0639 F=1.2200 N sigma=96.29 kPa  9785s
+  eps=0.0642 F=1.2197 N sigma=96.27 kPa  9833s
+  eps=0.0645 F=1.2195 N sigma=96.25 kPa  10058s
+  eps=0.0648 F=1.2192 N sigma=96.23 kPa  10106s
+  eps=0.0652 F=1.2190 N sigma=96.21 kPa  10332s
+  eps=0.0655 F=1.2187 N sigma=96.19 kPa  10380s
+  eps=0.0658 F=1.2185 N sigma=96.17 kPa  10621s
+  eps=0.0661 F=1.2183 N sigma=96.15 kPa  10681s
+  eps=0.0664 F=1.2179 N sigma=96.12 kPa  10954s
+  eps=0.0666 F=2.0938 N sigma=165.25 kPa (damped)  11341s
+  eps=0.0667 F=2.2734 N sigma=179.43 kPa (damped)  11546s
+  eps=0.0669 F=2.3691 N sigma=186.98 kPa (damped)  11755s
+  eps=0.0670 F=2.4311 N sigma=191.87 kPa (damped)  11965s
+  eps=0.0672 F=2.4770 N sigma=195.49 kPa (damped)  12174s
+  eps=0.0673 F=2.5141 N sigma=198.43 kPa (damped)  12383s
+  eps=0.0675 F=1.2058 N sigma=95.17 kPa  12509s
+  eps=0.0678 F=1.2055 N sigma=95.14 kPa  12557s
+  eps=0.0681 F=1.2051 N sigma=95.12 kPa  12605s
+  eps=0.0684 F=1.2048 N sigma=95.09 kPa  12834s
+  eps=0.0687 F=1.2045 N sigma=95.07 kPa  12883s
+  eps=0.0691 F=1.2042 N sigma=95.04 kPa  13110s
+  eps=0.0694 F=1.2040 N sigma=95.02 kPa  13158s
+  eps=0.0697 F=1.2037 N sigma=95.00 kPa  13385s
+  eps=0.0700 F=1.2035 N sigma=94.98 kPa  13433s
+  eps=0.0703 F=1.2033 N sigma=94.97 kPa  13660s
+  eps=0.0706 F=1.2031 N sigma=94.95 kPa  13708s
+  eps=0.0709 F=1.2029 N sigma=94.94 kPa  13934s
+  eps=0.0712 F=1.2027 N sigma=94.92 kPa  13982s
+  eps=0.0716 F=1.2026 N sigma=94.91 kPa  14208s
+  eps=0.0719 F=1.2024 N sigma=94.90 kPa  14256s
+  eps=0.0722 F=1.2023 N sigma=94.89 kPa  14482s
+  eps=0.0725 F=1.2022 N sigma=94.88 kPa  14531s
+  eps=0.0728 F=1.2021 N sigma=94.87 kPa  14757s
+  eps=0.0731 F=1.2020 N sigma=94.87 kPa  14806s
+  eps=0.0734 F=1.2019 N sigma=94.86 kPa  15031s
+  eps=0.0737 F=1.2019 N sigma=94.86 kPa  15078s
+  eps=0.0741 F=1.2018 N sigma=94.85 kPa  15298s
+  eps=0.0744 F=1.2018 N sigma=94.85 kPa  15345s
+  eps=0.0747 F=1.2017 N sigma=94.85 kPa  15565s
+  eps=0.0750 F=1.2017 N sigma=94.85 kPa  15611s
+  eps=0.0753 F=1.2017 N sigma=94.85 kPa  15831s
+  eps=0.0756 F=1.2017 N sigma=94.85 kPa  15878s
+  eps=0.0759 F=1.2018 N sigma=94.85 kPa  16098s
+  eps=0.0762 F=1.2018 N sigma=94.85 kPa  16145s
+  eps=0.0766 F=1.2018 N sigma=94.85 kPa  16364s
+  eps=0.0769 F=1.2019 N sigma=94.86 kPa  16411s
+  eps=0.0772 F=1.2019 N sigma=94.86 kPa  16631s
+  eps=0.0775 F=1.2020 N sigma=94.87 kPa  16678s
+  eps=0.0778 F=1.2021 N sigma=94.88 kPa  16897s
+  eps=0.0781 F=1.2022 N sigma=94.88 kPa  16944s
+  eps=0.0784 F=1.2023 N sigma=94.89 kPa  17163s
+  eps=0.0787 F=1.2024 N sigma=94.90 kPa  17209s
+  eps=0.0791 F=1.2025 N sigma=94.91 kPa  17428s
+  eps=0.0794 F=1.2026 N sigma=94.92 kPa  17475s
+  eps=0.0797 F=1.2028 N sigma=94.93 kPa  17695s
+  eps=0.0800 F=1.2029 N sigma=94.94 kPa  17742s
+  eps=0.0803 F=1.2031 N sigma=94.95 kPa  17961s
+  eps=0.0806 F=1.2032 N sigma=94.96 kPa  18008s
+  eps=0.0809 F=1.2034 N sigma=94.98 kPa  18227s
+  eps=0.0812 F=1.2036 N sigma=94.99 kPa  18273s
+  eps=0.0816 F=1.2037 N sigma=95.01 kPa  18494s
+  eps=0.0819 F=1.2039 N sigma=95.02 kPa  18541s
+  eps=0.0822 F=1.2041 N sigma=95.03 kPa  18761s
+  eps=0.0825 F=1.2043 N sigma=95.05 kPa  18808s
+  eps=0.0828 F=1.2045 N sigma=95.07 kPa  19028s
+  eps=0.0831 F=1.2047 N sigma=95.08 kPa  19075s
+  eps=0.0834 F=1.2048 N sigma=95.09 kPa  19318s
+  eps=0.0836 F=1.2046 N sigma=95.07 kPa  19689s
+  eps=0.0837 F=1.2047 N sigma=95.08 kPa  19761s
+  eps=0.0841 F=1.2050 N sigma=95.11 kPa  19833s
+  eps=0.0844 F=1.2054 N sigma=95.13 kPa  19905s
+  eps=0.0847 F=1.2057 N sigma=95.16 kPa  20144s
+  eps=0.0850 F=1.2060 N sigma=95.18 kPa  20216s
+  eps=0.0853 F=1.2063 N sigma=95.21 kPa  20466s
+  eps=0.0856 F=1.2066 N sigma=95.23 kPa  20538s
+  eps=0.0859 F=1.2069 N sigma=95.26 kPa  20800s
+  eps=0.0862 F=1.2072 N sigma=95.28 kPa  20871s
+  eps=0.0866 F=1.2075 N sigma=95.30 kPa  21108s
+  eps=0.0869 F=1.2078 N sigma=95.33 kPa  21168s
+  eps=0.0872 F=1.2081 N sigma=95.35 kPa  21420s
+  eps=0.0875 F=1.2084 N sigma=95.37 kPa  21480s
+  eps=0.0878 F=1.2087 N sigma=95.40 kPa  21755s
+  eps=0.0880 F=1.2089 N sigma=95.41 kPa  21994s
+  eps=0.0881 F=1.2090 N sigma=95.42 kPa  22054s
+  eps=0.0884 F=1.2093 N sigma=95.45 kPa  22172s
+  eps=0.0887 F=1.2097 N sigma=95.47 kPa  22232s
+  eps=0.0891 F=1.2100 N sigma=95.50 kPa  22471s
+  eps=0.0894 F=1.2103 N sigma=95.52 kPa  22531s
+  eps=0.0897 F=1.2106 N sigma=95.55 kPa  22768s
+  eps=0.0900 F=1.2110 N sigma=95.57 kPa  22828s
+  eps=0.0906 F=1.2116 N sigma=95.63 kPa  22983s
+  eps=0.0909 F=1.2120 N sigma=95.65 kPa  23221s
+  eps=0.0912 F=1.2123 N sigma=95.68 kPa  23281s
+  eps=0.0916 F=1.2126 N sigma=95.71 kPa  23512s
+  eps=0.0917 F=2.0492 N sigma=161.73 kPa (damped)  23899s
+  eps=0.0919 F=2.2100 N sigma=174.43 kPa (damped)  24107s
+  eps=0.0920 F=1.2132 N sigma=95.75 kPa  24167s
+  eps=0.0923 F=1.2135 N sigma=95.77 kPa  24251s
+  eps=0.0925 F=1.2137 N sigma=95.79 kPa  24535s
+  eps=0.0927 F=2.0491 N sigma=161.72 kPa (damped)  24742s
+  eps=0.0928 F=1.1492 N sigma=90.70 kPa  24908s
+  eps=0.0931 F=1.1493 N sigma=90.71 kPa  24956s
+  eps=0.0934 F=1.1495 N sigma=90.72 kPa  25004s
+  eps=0.0937 F=1.1496 N sigma=90.73 kPa  25231s
+  eps=0.0941 F=1.1498 N sigma=90.75 kPa  25278s
+  eps=0.0944 F=1.1499 N sigma=90.76 kPa  25504s
+  eps=0.0947 F=1.1501 N sigma=90.77 kPa  25552s
+  eps=0.0950 F=1.1503 N sigma=90.79 kPa  25778s
+  eps=0.0953 F=1.1505 N sigma=90.80 kPa  25826s
+  eps=0.0959 F=1.1509 N sigma=90.83 kPa  25987s
+  eps=0.0966 F=1.1513 N sigma=90.86 kPa  26106s
+  eps=0.0978 F=1.1522 N sigma=90.93 kPa  26237s
+  eps=0.0991 F=1.1532 N sigma=91.01 kPa  26374s
+  eps=0.0997 F=1.1537 N sigma=91.05 kPa  26812s
+  eps=0.1000 F=1.1539 N sigma=91.08 kPa  26860s
+wrote results/tube/tri_n8_rows4_d0.75_k0.1_periodic_imp0.5_medium

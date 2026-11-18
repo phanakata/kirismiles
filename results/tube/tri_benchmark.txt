@@ -1,0 +1,14 @@
+Triangular-cut tube vs Rafsanjani et al. PNAS 2019 SI Fig. S17A (digitised)
+E_eff = slope of sigma vs eps for eps <= 0.01 (MPa, fit through the origin)
+sigma at eps (kPa); undamped points only, linear interpolation
+
+case                                   E_eff (MPa)  s(0.02)  s(0.05)  s(0.10)  last undamped eps
+experiment (S17A)                             3.49     60.8     80.5     80.2             0.2958
+Rafsanjani rolled unit-cell FE (S17A)         3.17     59.3    101.8     80.6             0.2973
+tube FE, 2 rows, clamped, zero-width cuts        5.39    103.6    133.8      nan             0.0994
+tube FE, 2 rows, clamped, kerf 0.1 mm         4.33     82.7    121.6    168.2             0.1000
+tube FE, no cuts, 2 rows long              4469.13  91870.9 244308.1 535912.7             0.1000
+tube FE, 4 rows, clamped, kerf 0.1 mm         3.41     65.3     92.6     96.0             0.1000
+tube FE, 4 rows, periodic, kerf 0.1 mm        2.77     52.4      nan      nan             0.0289
+
+uncut tube E_eff = 4469 MPa (sheet E = 4330 MPa); the cuts make the tube 1280x softer than uncut (experiment)

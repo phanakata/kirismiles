@@ -1,0 +1,228 @@
+{
+ "args": {
+  "n": 8,
+  "rows": 4,
+  "delta": 0.75,
+  "eps": 0.1,
+  "deps": 0.0025,
+  "h_far": 1.5,
+  "h_tip": 0.2,
+  "kerf": 0.1,
+  "uncut": false,
+  "periodic": true,
+  "imperfection": 0.1,
+  "imp_seed": 0,
+  "mesh_only": false,
+  "out": null
+ },
+ "mesh": {
+  "triangles": 57057,
+  "nodes": 123187,
+  "cut_pieces": 0,
+  "cut_edges": 0,
+  "seam_nodes": 136,
+  "R": 26.46378698024602
+ },
+ "C": 166.27687752661222,
+ "Lz": 48.0,
+ "Lz_rolled": 47.500013947518255,
+ "F_rolled": 5.243877207461445e-11,
+ "provenance": {
+  "code_version": "28a75dd-dirty",
+  "git_commit": "28a75dd91f7a8c6654e6b2e2f243952a60a95a9e",
+  "dirty": true,
+  "changed_files": [
+   "irigami/jobs.py",
+   "scripts/kirigami_cli.py",
+   "kirigami/kdb.py",
+   "kirigami/provenance.py",
+   "kirigami/tube.py",
+   "scripts/build_kdb.py",
+   "scripts/plot_tube_benchmark.py",
+   "scripts/plot_tube_triangular.py",
+   "scripts/tube_benchmark.py",
+   "scripts/tube_triangular.py"
+  ],
+  "source_hash": "3ee5e4c896f413089b2af6f8f5d84bbe075a1303",
+  "image": "dolfinx/dolfinx:v0.9.0",
+  "image_id": null,
+  "python": "3.12.3",
+  "recorded": "2026-11-17T12:46:37+00:00"
+ },
+ "rows": [
+  {
+   "eps": 0.00125,
+   "force": 0.04473295856455696,
+   "sigma_kPa": 3.5305371922702498,
+   "damped": false
+  },
+  {
+   "eps": 0.00375,
+   "force": 0.13323393886107612,
+   "sigma_kPa": 10.51545418671211,
+   "damped": false
+  },
+  {
+   "eps": 0.00625,
+   "force": 0.22025560167732752,
+   "sigma_kPa": 17.383616431393264,
+   "damped": false
+  },
+  {
+   "eps": 0.00875,
+   "force": 0.30558492484214117,
+   "sigma_kPa": 24.11821120651544,
+   "damped": false
+  },
+  {
+   "eps": 0.011250000000000001,
+   "force": 0.38903675887883016,
+   "sigma_kPa": 30.704625637487986,
+   "damped": false
+  },
+  {
+   "eps": 0.013750000000000002,
+   "force": 0.4704782249441682,
+   "sigma_kPa": 37.13237229595538,
+   "damped": false
+  },
+  {
+   "eps": 0.01625,
+   "force": 0.5498032221871536,
+   "sigma_kPa": 43.39307719967694,
+   "damped": false
+  },
+  {
+   "eps": 0.01875,
+   "force": 0.6269164933656732,
+   "sigma_kPa": 49.47922219544068,
+   "damped": false
+  },
+  {
+   "eps": 0.021249999999999998,
+   "force": 0.7017603176930751,
+   "sigma_kPa": 55.38625168507958,
+   "damped": false
+  },
+  {
+   "eps": 0.023749999999999997,
+   "force": 0.77424153426764,
+   "sigma_kPa": 61.1068129685054,
+   "damped": false
+  },
+  {
+   "eps": 0.026249999999999996,
+   "force": 0.8443139592004486,
+   "sigma_kPa": 66.63726099422267,
+   "damped": false
+  },
+  {
+   "eps": 0.028749999999999994,
+   "force": 0.9118896253076585,
+   "sigma_kPa": 71.97065297498408,
+   "damped": false
+  },
+  {
+   "eps": 0.029062499999999995,
+   "force": 0.9201416661333951,
+   "sigma_kPa": 72.62194316419324,
+   "damped": false
+  },
+  {
+   "eps": 0.029374999999999995,
+   "force": 0.9283646013787721,
+   "sigma_kPa": 73.27093620299563,
+   "damped": false
+  },
+  {
+   "eps": 0.029687499999999995,
+   "force": 0.9365443099513313,
+   "sigma_kPa": 73.91651758781897,
+   "damped": false
+  },
+  {
+   "eps": 0.029999999999999995,
+   "force": 0.9446820409491923,
+   "sigma_kPa": 74.5587859034095,
+   "damped": false
+  },
+  {
+   "eps": 0.030312499999999996,
+   "force": 0.952777437160768,
+   "sigma_kPa": 75.19771295693504,
+   "damped": false
+  },
+  {
+   "eps": 0.030624999999999996,
+   "force": 0.9608301183080883,
+   "sigma_kPa": 75.83326873505506,
+   "damped": false
+  },
+  {
+   "eps": 0.030937499999999996,
+   "force": 0.9688396785933806,
+   "sigma_kPa": 76.46542121028527,
+   "damped": false
+  },
+  {
+   "eps": 0.031249999999999997,
+   "force": 0.9768056906772993,
+   "sigma_kPa": 77.09413665497826,
+   "damped": false
+  },
+  {
+   "eps": 0.03156249999999999,
+   "force": 0.984727705210168,
+   "sigma_kPa": 77.719379604327,
+   "damped": false
+  },
+  {
+   "eps": 0.031874999999999994,
+   "force": 0.9926052491503421,
+   "sigma_kPa": 78.34111272364194,
+   "damped": false
+  },
+  {
+   "eps": 0.032187499999999994,
+   "force": 1.0004378253609711,
+   "sigma_kPa": 78.95929677652565,
+   "damped": false
+  },
+  {
+   "eps": 0.032499999999999994,
+   "force": 1.0082249085856996,
+   "sigma_kPa": 79.57389030725605,
+   "damped": false
+  },
+  {
+   "eps": 0.032812499999999994,
+   "force": 1.015965943087652,
+   "sigma_kPa": 80.18484945444388,
+   "damped": false
+  },
+  {
+   "eps": 0.033124999999999995,
+   "force": 1.0236603412348966,
+   "sigma_kPa": 80.79212783939082,
+   "damped": false
+  },
+  {
+   "eps": 0.033437499999999995,
+   "force": 1.0313074787131735,
+   "sigma_kPa": 81.39567618825527,
+   "damped": false
+  },
+  {
+   "eps": 0.033749999999999995,
+   "force": 1.0389066927352468,
+   "sigma_kPa": 81.99544219072595,
+   "damped": false
+  },
+  {
+   "eps": 0.034062499999999996,
+   "force": 1.0464572776109364,
+   "sigma_kPa": 82.59137015038783,
+   "damped": false
+  }
+ ]
+}

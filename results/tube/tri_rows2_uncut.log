@@ -1,0 +1,50 @@
+mesh {'triangles': 4664, 'nodes': 9550, 'cut_pieces': 0, 'cut_edges': 0, 'seam_nodes': 37, 'R': 26.46378698024602} C=166.277 Lz=27.00  0.4s
+dofs 28650
+free edge length 332.554 mm, expected 332.554 (2 faces per cut + 2 rings)
+  roll c=0.80 ok=True
+  roll c=0.60 ok=True
+  roll c=0.40 ok=True
+  roll c=0.20 ok=True
+  roll c=0.00 ok=True
+  rolled: length change 0.0000 mm, axial force 3.78e-06 N
+  eps=0.0025 F=139.3256 N sigma=10996.24 kPa  6s
+  eps=0.0050 F=280.6816 N sigma=22152.72 kPa  11s
+  eps=0.0075 F=423.8327 N sigma=33450.89 kPa  15s
+  eps=0.0100 F=568.6762 N sigma=44882.62 kPa  19s
+  eps=0.0125 F=715.1518 N sigma=56443.17 kPa  23s
+  eps=0.0150 F=863.2202 N sigma=68129.43 kPa  27s
+  eps=0.0175 F=1012.8536 N sigma=79939.21 kPa  31s
+  eps=0.0200 F=1164.0316 N sigma=91870.89 kPa  35s
+  eps=0.0225 F=1316.7391 N sigma=103923.29 kPa  39s
+  eps=0.0250 F=1470.9644 N sigma=116095.48 kPa  43s
+  eps=0.0275 F=1626.6987 N sigma=128386.77 kPa  47s
+  eps=0.0300 F=1783.9349 N sigma=140796.60 kPa  51s
+  eps=0.0325 F=1942.6679 N sigma=153324.56 kPa  55s
+  eps=0.0350 F=2102.8933 N sigma=165970.31 kPa  58s
+  eps=0.0375 F=2264.6081 N sigma=178733.61 kPa  62s
+  eps=0.0400 F=2427.8098 N sigma=191614.26 kPa  66s
+  eps=0.0425 F=2592.4966 N sigma=204612.13 kPa  70s
+  eps=0.0450 F=2758.6673 N sigma=217727.10 kPa  74s
+  eps=0.0475 F=2926.3209 N sigma=230959.12 kPa  78s
+  eps=0.0500 F=3095.4571 N sigma=244308.15 kPa  82s
+  eps=0.0525 F=3266.0754 N sigma=257774.16 kPa  86s
+  eps=0.0550 F=3438.1760 N sigma=271357.15 kPa  90s
+  eps=0.0575 F=3611.7590 N sigma=285057.15 kPa  94s
+  eps=0.0600 F=3786.8248 N sigma=298874.17 kPa  97s
+  eps=0.0625 F=3963.3738 N sigma=312808.25 kPa  101s
+  eps=0.0650 F=4141.4067 N sigma=326859.46 kPa  105s
+  eps=0.0675 F=4320.9242 N sigma=341027.83 kPa  109s
+  eps=0.0700 F=4501.9270 N sigma=355313.43 kPa  113s
+  eps=0.0725 F=4684.4161 N sigma=369716.33 kPa  117s
+  eps=0.0750 F=4868.3923 N sigma=384236.60 kPa  121s
+  eps=0.0775 F=5053.8565 N sigma=398874.32 kPa  124s
+  eps=0.0800 F=5240.8098 N sigma=413629.56 kPa  128s
+  eps=0.0825 F=5429.2532 N sigma=428502.41 kPa  132s
+  eps=0.0850 F=5619.1879 N sigma=443492.95 kPa  136s
+  eps=0.0875 F=5810.6147 N sigma=458601.27 kPa  140s
+  eps=0.0900 F=6003.5350 N sigma=473827.45 kPa  144s
+  eps=0.0925 F=6197.9498 N sigma=489171.59 kPa  147s
+  eps=0.0950 F=6393.8603 N sigma=504633.77 kPa  151s
+  eps=0.0975 F=6591.2677 N sigma=520214.10 kPa  155s
+  eps=0.1000 F=6790.1731 N sigma=535912.65 kPa  159s
+wrote results/tube/tri_n8_rows2_uncut

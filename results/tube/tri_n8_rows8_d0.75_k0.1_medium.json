@@ -1,0 +1,297 @@
+{
+ "args": {
+  "n": 8,
+  "rows": 8,
+  "delta": 0.75,
+  "eps": 0.1,
+  "deps": 0.0025,
+  "h_far": 2.0,
+  "h_tip": 0.3,
+  "h_cut": 0.7,
+  "kerf": 0.1,
+  "uncut": false,
+  "periodic": false,
+  "imperfection": 0.0,
+  "imp_seed": 0,
+  "predictor": "none",
+  "mesh_only": false,
+  "out": "results/tube/tri_n8_rows8_d0.75_k0.1_medium"
+ },
+ "mesh": {
+  "triangles": 61503,
+  "nodes": 134519,
+  "cut_pieces": 0,
+  "cut_edges": 0,
+  "seam_nodes": 213,
+  "R": 26.46378698024602
+ },
+ "C": 166.27687752661222,
+ "Lz": 99.0,
+ "Lz_rolled": 98.10133037745138,
+ "F_rolled": -0.0048565777844189325,
+ "provenance": {
+  "code_version": "28a75dd-dirty",
+  "git_commit": "28a75dd91f7a8c6654e6b2e2f243952a60a95a9e",
+  "dirty": true,
+  "changed_files": [
+   "irigami/jobs.py",
+   "scripts/kirigami_cli.py",
+   "kirigami/kdb.py",
+   "kirigami/provenance.py",
+   "kirigami/tube.py",
+   "scripts/build_kdb.py",
+   "scripts/compare_tube_runs.py",
+   "scripts/plot_tube_benchmark.py",
+   "scripts/plot_tube_triangular.py",
+   "scripts/tube_benchmark.py",
+   "scripts/tube_triangular.py"
+  ],
+  "source_hash": "38263ad70e5d8d8f8607d7a2591dc7db35663cf0",
+  "image": "dolfinx/dolfinx:v0.9.0",
+  "image_id": null,
+  "python": "3.12.3",
+  "recorded": "2026-11-17T18:39:45+00:00"
+ },
+ "rows": [
+  {
+   "eps": 0.0025,
+   "force": 0.0976994374958694,
+   "sigma_kPa": 7.7109028513116815,
+   "damped": false
+  },
+  {
+   "eps": 0.005,
+   "force": 0.19839326493949497,
+   "sigma_kPa": 15.658137155269324,
+   "damped": false
+  },
+  {
+   "eps": 0.0075,
+   "force": 0.2969829438552003,
+   "sigma_kPa": 23.43930208053469,
+   "damped": false
+  },
+  {
+   "eps": 0.01,
+   "force": 0.393258393666541,
+   "sigma_kPa": 31.037817071912897,
+   "damped": false
+  },
+  {
+   "eps": 0.0125,
+   "force": 0.4870482740235454,
+   "sigma_kPa": 38.44015913656995,
+   "damped": false
+  },
+  {
+   "eps": 0.015000000000000001,
+   "force": 0.5782153653928392,
+   "sigma_kPa": 45.63549825830238,
+   "damped": false
+  },
+  {
+   "eps": 0.0175,
+   "force": 0.6666457684578954,
+   "sigma_kPa": 52.6148449629936,
+   "damped": false
+  },
+  {
+   "eps": 0.02,
+   "force": 0.752234659452119,
+   "sigma_kPa": 59.36992606195966,
+   "damped": false
+  },
+  {
+   "eps": 0.0225,
+   "force": 0.8348689408453087,
+   "sigma_kPa": 65.89181536186251,
+   "damped": false
+  },
+  {
+   "eps": 0.024999999999999998,
+   "force": 0.9144045535774735,
+   "sigma_kPa": 72.16914303862832,
+   "damped": false
+  },
+  {
+   "eps": 0.027499999999999997,
+   "force": 0.9906321768882537,
+   "sigma_kPa": 78.18538850535026,
+   "damped": false
+  },
+  {
+   "eps": 0.029999999999999995,
+   "force": 1.0632159311225255,
+   "sigma_kPa": 83.91404254706484,
+   "damped": false
+  },
+  {
+   "eps": 0.032499999999999994,
+   "force": 1.131563468937289,
+   "sigma_kPa": 89.3083543028339,
+   "damped": false
+  },
+  {
+   "eps": 0.034999999999999996,
+   "force": 1.1944901623904831,
+   "sigma_kPa": 94.27482731852925,
+   "damped": false
+  },
+  {
+   "eps": 0.0375,
+   "force": 1.2490301968615412,
+   "sigma_kPa": 98.57938544181731,
+   "damped": false
+  },
+  {
+   "eps": 0.04,
+   "force": 1.2753294452751531,
+   "sigma_kPa": 100.65504682511288,
+   "damped": false
+  },
+  {
+   "eps": 0.0425,
+   "force": 1.2152068702339076,
+   "sigma_kPa": 95.90988813028066,
+   "damped": false
+  },
+  {
+   "eps": 0.045000000000000005,
+   "force": 1.1885411832928656,
+   "sigma_kPa": 93.80530568092358,
+   "damped": false
+  },
+  {
+   "eps": 0.04750000000000001,
+   "force": 1.1718080055508417,
+   "sigma_kPa": 92.48464395277462,
+   "damped": false
+  },
+  {
+   "eps": 0.05000000000000001,
+   "force": 1.1598669584542596,
+   "sigma_kPa": 91.54219989716196,
+   "damped": false
+  },
+  {
+   "eps": 0.05250000000000001,
+   "force": 1.1511137485220833,
+   "sigma_kPa": 90.8513550657677,
+   "damped": false
+  },
+  {
+   "eps": 0.055000000000000014,
+   "force": 1.1437423059830023,
+   "sigma_kPa": 90.26956586871852,
+   "damped": false
+  },
+  {
+   "eps": 0.057500000000000016,
+   "force": 1.138456938028949,
+   "sigma_kPa": 89.8524195690905,
+   "damped": false
+  },
+  {
+   "eps": 0.06000000000000002,
+   "force": 1.133910655960596,
+   "sigma_kPa": 89.49360543195472,
+   "damped": false
+  },
+  {
+   "eps": 0.06250000000000001,
+   "force": 1.1297999005603423,
+   "sigma_kPa": 89.1691651245251,
+   "damped": false
+  },
+  {
+   "eps": 0.06500000000000002,
+   "force": 1.126975618733028,
+   "sigma_kPa": 88.94625941131598,
+   "damped": false
+  },
+  {
+   "eps": 0.06750000000000002,
+   "force": 1.124433576513552,
+   "sigma_kPa": 88.74562938620309,
+   "damped": false
+  },
+  {
+   "eps": 0.07000000000000002,
+   "force": 1.121812469294252,
+   "sigma_kPa": 88.53875917641555,
+   "damped": false
+  },
+  {
+   "eps": 0.07250000000000002,
+   "force": 1.1201126420353882,
+   "sigma_kPa": 88.40460074937586,
+   "damped": false
+  },
+  {
+   "eps": 0.07500000000000002,
+   "force": 1.1187979519192757,
+   "sigma_kPa": 88.30083917177872,
+   "damped": false
+  },
+  {
+   "eps": 0.07750000000000003,
+   "force": 1.1170880178267357,
+   "sigma_kPa": 88.16588306550351,
+   "damped": false
+  },
+  {
+   "eps": 0.08000000000000003,
+   "force": 1.1158569259743156,
+   "sigma_kPa": 88.06871945926008,
+   "damped": false
+  },
+  {
+   "eps": 0.08250000000000003,
+   "force": 1.1152724225366484,
+   "sigma_kPa": 88.02258767652285,
+   "damped": false
+  },
+  {
+   "eps": 0.08500000000000003,
+   "force": 1.1143865191652773,
+   "sigma_kPa": 87.95266798192296,
+   "damped": false
+  },
+  {
+   "eps": 0.08750000000000004,
+   "force": 1.113335443676197,
+   "sigma_kPa": 87.86971212062605,
+   "damped": false
+  },
+  {
+   "eps": 0.09000000000000004,
+   "force": 1.112961321968907,
+   "sigma_kPa": 87.84018466158001,
+   "damped": false
+  },
+  {
+   "eps": 0.09250000000000004,
+   "force": 1.1126968763231755,
+   "sigma_kPa": 87.81931335734374,
+   "damped": false
+  },
+  {
+   "eps": 0.09500000000000004,
+   "force": 1.1118705858304891,
+   "sigma_kPa": 87.75409859378551,
+   "damped": false
+  },
+  {
+   "eps": 0.09750000000000004,
+   "force": 1.1113582798111088,
+   "sigma_kPa": 87.71366497362519,
+   "damped": false
+  },
+  {
+   "eps": 0.1,
+   "force": 1.111484562658766,
+   "sigma_kPa": 87.72363181473533,
+   "damped": false
+  }
+ ]
+}
