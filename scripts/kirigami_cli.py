@@ -29,7 +29,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from kirigami import spec as S  # noqa: E402
 
-IMAGE = "dolfinx/dolfinx:v0.9.0"
+from kirigami.provenance import IMAGE  # noqa: E402  (one place for the solver image)
 CONTAINER_PYTHONPATH = "/work:/usr/local/dolfinx-real/lib/python3.12/dist-packages:/usr/local/lib"
 
 
@@ -45,9 +45,15 @@ def run_dir(spec):
 
 def stage_spec(spec):
     """Save the (default-filled) spec with the run: the record of what was
-    simulated, and the path handed to the container."""
+    simulated, and the path handed to the container. provenance.json beside it
+    records the code version and the solver image (kirigami/provenance.py)."""
     p = run_dir(spec) / "spec.json"
     S.save(spec, p)
+    try:                                   # which code and image produce this run
+        from kirigami import provenance
+        provenance.write(p.parent)
+    except Exception:                      # never let bookkeeping stop a run
+        pass
     return p.relative_to(ROOT).as_posix()
 
 

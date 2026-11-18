@@ -139,7 +139,9 @@ and the rule for repeating it, not every copy.
   the edges y = 0 and y = W are free. Like the material, the loading is context, not part of the
   string: a spec can choose roller ends or equal-biaxial loading instead
   ([details](BENCHMARK.md#models)).
-- All lengths are in mm.
+- Lengths in a string carry no unit: the unit is context, like the sheet size and material, so the
+  same string can describe a centimetre-scale sheet or a micrometre-scale one. This repository, its
+  tools and all the examples here use **mm**.
 - In the free form, **x is measured from the middle of the sheet** and **y from the centre line**.
   A point at `0,0` is the centre of the sheet.
 - y can also be measured **from a free edge**: `b+2.9` is 2.9 mm above the bottom edge, `t-3.5`

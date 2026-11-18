@@ -12,6 +12,7 @@ results/schematics/
 build/
 logs/
 results/runs/
+results/kdb/
 *.npz
 *.stl
 __pycache__/

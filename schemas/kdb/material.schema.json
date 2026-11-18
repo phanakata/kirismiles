@@ -1,0 +1,170 @@
+{
+ "$defs": {
+  "Quantity": {
+   "additionalProperties": false,
+   "properties": {
+    "value": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Value"
+    },
+    "unit": {
+     "description": "'1' for dimensionless",
+     "title": "Unit",
+     "type": "string"
+    }
+   },
+   "required": [
+    "value",
+    "unit"
+   ],
+   "title": "Quantity",
+   "type": "object"
+  },
+  "Reference": {
+   "additionalProperties": false,
+   "properties": {
+    "doi": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Doi"
+    },
+    "citation_key": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "key in paper/references.bib",
+     "title": "Citation Key"
+    },
+    "figure": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Figure"
+    },
+    "role": {
+     "default": "other",
+     "enum": [
+      "origin",
+      "data",
+      "constants",
+      "method",
+      "other"
+     ],
+     "title": "Role",
+     "type": "string"
+    }
+   },
+   "title": "Reference",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "properties": {
+  "schema_version": {
+   "default": "kdb/0.1",
+   "title": "Schema Version",
+   "type": "string"
+  },
+  "material_id": {
+   "title": "Material Id",
+   "type": "string"
+  },
+  "name": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Name"
+  },
+  "model": {
+   "default": "svk",
+   "description": "membrane law of the shell model (kirigami/shell.py)",
+   "enum": [
+    "svk",
+    "neo_hookean",
+    "linear"
+   ],
+   "title": "Model",
+   "type": "string"
+  },
+  "E": {
+   "$ref": "#/$defs/Quantity",
+   "description": "Young's modulus"
+  },
+  "nu": {
+   "description": "Poisson's ratio",
+   "title": "Nu",
+   "type": "number"
+  },
+  "density": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/Quantity"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null
+  },
+  "discreteness_length": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/Quantity"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "description": "smallest physical length of the material (e.g. the lattice spacing of a 2D crystal); None for a continuum. Ligaments comparable to it need an atomistic model"
+  },
+  "references": {
+   "default": [],
+   "items": {
+    "$ref": "#/$defs/Reference"
+   },
+   "title": "References",
+   "type": "array"
+  }
+ },
+ "required": [
+  "material_id",
+  "E",
+  "nu"
+ ],
+ "title": "Material",
+ "type": "object",
+ "$id": "kdb/0.1/material"
+}

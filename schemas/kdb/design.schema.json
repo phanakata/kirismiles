@@ -1,0 +1,157 @@
+{
+ "$defs": {
+  "Generator": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "description": "generator in kirigami/geometry.py or a script",
+     "title": "Name",
+     "type": "string"
+    },
+    "params": {
+     "additionalProperties": true,
+     "description": "lengths in the specimen's unit are not allowed here unless the design is tied to a scale (scale_free=False)",
+     "title": "Params",
+     "type": "object"
+    }
+   },
+   "required": [
+    "name",
+    "params"
+   ],
+   "title": "Generator",
+   "type": "object"
+  },
+  "Reference": {
+   "additionalProperties": false,
+   "properties": {
+    "doi": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Doi"
+    },
+    "citation_key": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "key in paper/references.bib",
+     "title": "Citation Key"
+    },
+    "figure": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Figure"
+    },
+    "role": {
+     "default": "other",
+     "enum": [
+      "origin",
+      "data",
+      "constants",
+      "method",
+      "other"
+     ],
+     "title": "Role",
+     "type": "string"
+    }
+   },
+   "title": "Reference",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "properties": {
+  "schema_version": {
+   "default": "kdb/0.1",
+   "title": "Schema Version",
+   "type": "string"
+  },
+  "design_id": {
+   "title": "Design Id",
+   "type": "string"
+  },
+  "kirismiles": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "description": "canonical KiriSMILES string",
+   "title": "Kirismiles"
+  },
+  "generator": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/Generator"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "description": "when no string: how the pattern is generated"
+  },
+  "scale_free": {
+   "default": true,
+   "description": "False when the identity depends on the sheet (explicit geometry)",
+   "title": "Scale Free",
+   "type": "boolean"
+  },
+  "cuts_as_slots": {
+   "default": false,
+   "description": "the cuts must have a finite width (e.g. where cuts meet); the width itself is fabrication and is the specimen's kerf",
+   "title": "Cuts As Slots",
+   "type": "boolean"
+  },
+  "family": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Family"
+  },
+  "references": {
+   "default": [],
+   "items": {
+    "$ref": "#/$defs/Reference"
+   },
+   "title": "References",
+   "type": "array"
+  }
+ },
+ "required": [
+  "design_id"
+ ],
+ "title": "Design",
+ "type": "object",
+ "$id": "kdb/0.1/design"
+}

@@ -220,9 +220,13 @@ def finish_run(name, res):
     d = RUNS / name
     make_gif.make(name, src=d / "history.npz", dst=d / "deformation.gif")
     res["analysis"] = analyse_run(name)
-    res["files"] = [rel(d / f) for f in ("spec.json", "summary.json", "history.npz",
-                                         "deformation.gif", "stress_strain.png")
+    res["files"] = [rel(d / f) for f in ("spec.json", "provenance.json", "summary.json",
+                                         "history.npz", "deformation.gif", "stress_strain.png")
                     if (d / f).exists()]
+    prov = d / "provenance.json"                  # written by kirigami_cli.stage_spec
+    if prov.exists():
+        p = json.loads(prov.read_text())
+        res["provenance"] = {k: p.get(k) for k in ("code_version", "source_hash", "image", "image_id")}
     return res
 
 

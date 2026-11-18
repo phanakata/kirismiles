@@ -1,0 +1,188 @@
+{
+ "$defs": {
+  "Cylinder": {
+   "additionalProperties": false,
+   "properties": {
+    "type": {
+     "const": "cylinder",
+     "default": "cylinder",
+     "title": "Type",
+     "type": "string"
+    },
+    "circumference": {
+     "title": "Circumference",
+     "type": "number"
+    },
+    "length": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "None when not reported",
+     "title": "Length"
+    },
+    "n_around": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "unit cells around the tube",
+     "title": "N Around"
+    },
+    "rows": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "unit cells along the tube",
+     "title": "Rows"
+    },
+    "rolled_from_flat": {
+     "default": true,
+     "description": "natural shape flat (rolled sheet) or curved (cut from tubing)",
+     "title": "Rolled From Flat",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "circumference"
+   ],
+   "title": "Cylinder",
+   "type": "object"
+  },
+  "FlatSheet": {
+   "additionalProperties": false,
+   "properties": {
+    "type": {
+     "const": "flat",
+     "default": "flat",
+     "title": "Type",
+     "type": "string"
+    },
+    "L": {
+     "description": "length along the pull (x)",
+     "title": "L",
+     "type": "number"
+    },
+    "W": {
+     "description": "width (y)",
+     "title": "W",
+     "type": "number"
+    }
+   },
+   "required": [
+    "L",
+    "W"
+   ],
+   "title": "FlatSheet",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "properties": {
+  "schema_version": {
+   "default": "kdb/0.1",
+   "title": "Schema Version",
+   "type": "string"
+  },
+  "specimen_id": {
+   "title": "Specimen Id",
+   "type": "string"
+  },
+  "design_id": {
+   "title": "Design Id",
+   "type": "string"
+  },
+  "unit": {
+   "default": "mm",
+   "description": "unit of every length of this specimen and its design",
+   "title": "Unit",
+   "type": "string"
+  },
+  "geometry": {
+   "discriminator": {
+    "mapping": {
+     "cylinder": "#/$defs/Cylinder",
+     "flat": "#/$defs/FlatSheet"
+    },
+    "propertyName": "type"
+   },
+   "oneOf": [
+    {
+     "$ref": "#/$defs/FlatSheet"
+    },
+    {
+     "$ref": "#/$defs/Cylinder"
+    }
+   ],
+   "title": "Geometry"
+  },
+  "thickness": {
+   "title": "Thickness",
+   "type": "number"
+  },
+  "material_id": {
+   "title": "Material Id",
+   "type": "string"
+  },
+  "kerf": {
+   "anyOf": [
+    {
+     "type": "number"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "description": "fabrication cut width, applied to every cut; None = zero-width cuts or not reported. Widths chosen as geometry stay in the string",
+   "title": "Kerf"
+  },
+  "geometry_key": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "description": "kirismiles.geometry_key of the finite pattern on this sheet",
+   "title": "Geometry Key"
+  },
+  "dimensionless": {
+   "additionalProperties": {
+    "type": "number"
+   },
+   "default": {},
+   "title": "Dimensionless",
+   "type": "object"
+  }
+ },
+ "required": [
+  "specimen_id",
+  "design_id",
+  "geometry",
+  "thickness",
+  "material_id"
+ ],
+ "title": "Specimen",
+ "type": "object",
+ "$id": "kdb/0.1/specimen"
+}

@@ -1,0 +1,394 @@
+{
+ "$defs": {
+  "Loading": {
+   "additionalProperties": true,
+   "properties": {
+    "type": {
+     "default": "uniaxial",
+     "enum": [
+      "uniaxial",
+      "biaxial"
+     ],
+     "title": "Type",
+     "type": "string"
+    },
+    "boundary": {
+     "default": "clamped",
+     "enum": [
+      "clamped",
+      "roller",
+      "biaxial",
+      "periodic"
+     ],
+     "title": "Boundary",
+     "type": "string"
+    },
+    "in_plane": {
+     "default": false,
+     "title": "In Plane",
+     "type": "boolean"
+    },
+    "max_displacement": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Max Displacement"
+    },
+    "max_strain": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Max Strain"
+    },
+    "steps": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Steps"
+    }
+   },
+   "title": "Loading",
+   "type": "object"
+  },
+  "Method": {
+   "additionalProperties": true,
+   "properties": {
+    "engine": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "'kirigami' for this platform; or the code/apparatus of a source",
+     "title": "Engine"
+    },
+    "model": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "e.g. 'Kirchhoff-Love shell'",
+     "title": "Model"
+    },
+    "analysis": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "simulate, buckle, ...",
+     "title": "Analysis"
+    },
+    "mesh": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Mesh"
+    },
+    "code_version": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Code Version"
+    },
+    "image": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Image"
+    },
+    "seconds": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Seconds"
+    }
+   },
+   "title": "Method",
+   "type": "object"
+  },
+  "Provenance": {
+   "additionalProperties": false,
+   "properties": {
+    "source": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "path of the run or file it came from",
+     "title": "Source"
+    },
+    "created": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Created"
+    },
+    "approximate": {
+     "default": false,
+     "description": "True for digitised curves",
+     "title": "Approximate",
+     "type": "boolean"
+    },
+    "references": {
+     "default": [],
+     "items": {
+      "$ref": "#/$defs/Reference"
+     },
+     "title": "References",
+     "type": "array"
+    },
+    "notes": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Notes"
+    }
+   },
+   "title": "Provenance",
+   "type": "object"
+  },
+  "Quantity": {
+   "additionalProperties": false,
+   "properties": {
+    "value": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Value"
+    },
+    "unit": {
+     "description": "'1' for dimensionless",
+     "title": "Unit",
+     "type": "string"
+    }
+   },
+   "required": [
+    "value",
+    "unit"
+   ],
+   "title": "Quantity",
+   "type": "object"
+  },
+  "Reference": {
+   "additionalProperties": false,
+   "properties": {
+    "doi": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Doi"
+    },
+    "citation_key": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "key in paper/references.bib",
+     "title": "Citation Key"
+    },
+    "figure": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Figure"
+    },
+    "role": {
+     "default": "other",
+     "enum": [
+      "origin",
+      "data",
+      "constants",
+      "method",
+      "other"
+     ],
+     "title": "Role",
+     "type": "string"
+    }
+   },
+   "title": "Reference",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "properties": {
+  "schema_version": {
+   "default": "kdb/0.1",
+   "title": "Schema Version",
+   "type": "string"
+  },
+  "result_id": {
+   "title": "Result Id",
+   "type": "string"
+  },
+  "specimen_id": {
+   "title": "Specimen Id",
+   "type": "string"
+  },
+  "kind": {
+   "enum": [
+    "simulation",
+    "experiment",
+    "digitised"
+   ],
+   "title": "Kind",
+   "type": "string"
+  },
+  "status": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Status"
+  },
+  "completed": {
+   "anyOf": [
+    {
+     "type": "boolean"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Completed"
+  },
+  "loading": {
+   "$ref": "#/$defs/Loading"
+  },
+  "method": {
+   "$ref": "#/$defs/Method"
+  },
+  "data": {
+   "additionalProperties": {
+    "type": "string"
+   },
+   "default": {},
+   "description": "name -> path of raw data (npz/json/csv)",
+   "title": "Data",
+   "type": "object"
+  },
+  "properties": {
+   "type": "object",
+   "additionalProperties": {
+    "$ref": "#/$defs/Quantity"
+   },
+   "default": {},
+   "title": "Properties"
+  },
+  "provenance": {
+   "$ref": "#/$defs/Provenance"
+  }
+ },
+ "required": [
+  "result_id",
+  "specimen_id",
+  "kind",
+  "loading",
+  "method",
+  "provenance"
+ ],
+ "title": "Result",
+ "type": "object",
+ "$id": "kdb/0.1/result"
+}
