@@ -1,8 +1,8 @@
 """Figures of the kirigami shell (pattern of Rafsanjani et al., PNAS 2019).
 
 fig_shell.png (paper): (a) the 8-row clamped shell, rolled and stretched, coloured
-by radial offset; (b) stress against applied strain, 4 and 8 rows, clamped. Our
-results only.
+by radial offset; (b) stress against applied strain, 4 and 8 rows, clamped, with the
+experiment and the rolled-unit-cell FE of that work, digitised from its SI Fig. S17A.
 benchmark_shell.png (BENCHMARK.md): the same curves against the experiment and the
 rolled-unit-cell FE of that work, digitised from its SI Fig. S17A.
 
@@ -64,7 +64,7 @@ def main():
         fig.text(0.0, (H - 0.02) / H, "(a)", fontweight="bold", va="top")
 
         axb = fig.add_axes([4.35 / FW, 0.5 / H, 2.6 / FW, 2.1 / H])
-        stress_strain(axb)
+        stress_strain(axb, P.reference())
         axb.set_title("(b)", loc="left", fontweight="bold")
         fig.savefig(OUT, dpi=220, bbox_inches="tight", facecolor="white")
         plt.close(fig)
