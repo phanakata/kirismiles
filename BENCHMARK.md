@@ -375,6 +375,57 @@ mesh-converged: it sits at the slit tips. It is reported, but not used as a crit
 solid strips at the loaded ends presumably resist sideways stretching: the band expands
 sideways by only 0.09 (0.30 along the pull). To model uniaxial stress on the band itself, put the loaded edges at the band.
 
+### Kirigami shell: pop-ups in a rolled triangular pattern
+
+![Kirigami shell: our clamped shells of 4 and 8 rows against the experiment and the rolled-unit-cell FE](results/tube/benchmark_shell.png)
+
+Benchmark against Rafsanjani, Jin, Deng and Bertoldi, *PNAS* **116**, 8200 (2019),
+doi:10.1073/pnas.1817763116. The experiment and their rolled-unit-cell FE curves are
+digitised by hand from their SI Fig. S17A (`results/tube/rafsanjani_s17a_digitised.json`,
+approximate, for comparison only).
+
+**Geometry and material (theirs).** A PET sheet, t = 76.2 µm, E = 4.33 GPa, ν = 0.4, with a
+triangular pattern of l = 12 mm and hinges δ = 0.75 mm, laser-cut 0.1 mm wide. It is rolled
+into a cylinder of n = 8 unit cells (L = 20.8 mm) around and 20 rows (H = 12 mm) along it, with
+the overlapping edges glued and the ends glued to caps.
+
+**Our model** (`kirigami/tube.py`, driver `scripts/tube_triangular.py`).
+- Kirchhoff–Love shell on the closed cylinder, R = nL/2π = 26.5 mm, cuts as 0.1 mm slots.
+- Rolling: the natural curvature is lowered from that of the cylinder to zero, so the shell
+  carries the bending prestress of a rolled sheet.
+- Ends as their 20 × 1 super-cell: bottom ring fixed; top ring moved by Δ along the axis,
+  free radially and around; neither ring may rotate.
+- 4 and 8 rows instead of 20, with a 1.5 mm uncut margin at each end. The mesh is refined at
+  the cut tips (h_tip/h_cut/h_far = 0.3/0.7/2.0 mm); the finer mesh (0.2/0.5/1.5) changes
+  the stress by less than 2% on 4 rows.
+
+**Strain and stress.** ε̄ = Δ/L₀, with Δ from the rolled state and L₀ the rolled length
+between the rings; σ = F/(nLt), F the axial reaction. These are the definitions of their FE.
+The experiment measures ε̄ between markers on rows 3 and 18 of 20 instead.
+`scripts/tube_marker_strain.py` applies the marker definition to our runs.
+
+| | E = σ/ε̄ (MPa) | peak σ (kPa) at ε̄ | σ after the peak (kPa) |
+|---|---|---|---|
+| experiment, 20 rows | 3.49 | ~93 at ~0.040 | ~80 |
+| their FE, rolled unit cell | 3.17 | ~110 at ~0.044 | ~80 at 0.10 |
+| ours, 4 rows clamped | 3.47 | 101 at 0.035 | 92, rising to 98 at 0.10 |
+| ours, 8 rows clamped | 3.11 | 101 at 0.040 | 88 |
+
+- The trend is reproduced: a linear rise, a peak, a drop as the cuts pop up, and a plateau.
+- In the 8-row shell the pop-ups start next to the top end (the end the triangles point to)
+  at ε̄ ≈ 0.045, and spread down. They reach the third row from the bottom at ε̄ = 0.10, the
+  order seen in their experiments.
+- Going from 4 to 8 rows moves the peak to the experimental strain and removes the late rise.
+  The end rows stay nearly round, at 0.2–0.6 mm radial displacement against 1.4–1.7 mm in the
+  popped rows. With markers, the interior strain of the 8-row shell is ~12% larger than ε̄
+  before the peak, so E = 2.67 MPa.
+- A shell periodic along its axis (`--periodic`, 4 rows, radial imperfection 0.5 t) passes the
+  peak at 102 kPa (ε̄ = 0.045). Its full ring then ovalises, a mode their rotation-periodic
+  sector excludes, so it is not shown.
+- Cost: 52 min for 8 rows (4 × 10⁵ unknowns, ~2 GB) on a laptop in Docker.
+
+Figure: `python scripts/plot_tube_paper.py`.
+
 ## Caveats
 
 - **Dimensions.** The paper only fully specifies the single-cut geometry. Every other
