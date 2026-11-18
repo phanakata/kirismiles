@@ -16,6 +16,7 @@ results/kdb/
 *.npz
 *.stl
 __pycache__/
+.venv/
 *.pyc
 .ipynb_checkpoints/
 

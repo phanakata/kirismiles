@@ -1,0 +1,11 @@
+# Host side: the notation, the design checks, the command line, the web app and the plots.
+# The solver (FEniCSx, PETSc, gmsh) runs in the dolfinx/dolfinx:v0.9.0 Docker image
+# and is not installed here.
+numpy
+scipy
+matplotlib
+Pillow
+
+# Optional:
+#   pytest            to run the tests
+#   mcp>=2.3,<3       the MCP server for AI assistants (also brings pydantic, used by kirigami/kdb.py)

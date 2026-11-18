@@ -59,18 +59,62 @@ to speed up data-driven kirigami research, in the spirit of Emma Lejeune's
 The project is under active development. The [roadmap](#roadmap) lists what is not built yet, and
 [How to get involved](#how-to-get-involved) says how to help.
 
-## Getting started
+## Installation
 
-The notation, the design checks and the plots need only Python with numpy, matplotlib and Pillow.
-The solver runs in Docker (`dolfinx/dolfinx:v0.9.0`) and starts automatically when a command needs
-it.
+### What you need
+
+| Part | Needed for | How to get it |
+|---|---|---|
+| Python 3 with numpy, scipy, matplotlib, Pillow | the notation, design checks, command line, web app, plots | `pip install -r requirements.txt` |
+| [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on Windows and macOS) | simulations | install Docker, then start it |
+| the FEniCSx image `dolfinx/dolfinx:v0.9.0` | simulations | pulled by Docker on the first simulation |
+| pytest | the tests (optional) | `pip install pytest` |
+| the MCP Python SDK | the server for AI assistants (optional) | `pip install "mcp>=2.3,<3"` |
+
+The solver and everything it depends on, FEniCSx, PETSc, SLEPc, MUMPS and gmsh, live inside the
+Docker image, so there is nothing to compile. Writing, checking and drawing designs work without
+Docker. The code is developed and tested with Python 3.13 on Windows, with Docker Desktop.
+
+**Memory.** The command line gives each simulation container up to 3 GB, so give Docker at
+least 4 GB (Docker Desktop: *Settings → Resources*).
+
+### Steps
 
 ```bash
-python -m pytest -q tests/                                     # run the tests (needs pytest)
+git clone https://github.com/phanakata/kirismiles.git
+cd kirismiles
+python -m venv .venv
+source .venv/bin/activate              # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+pip install pytest "mcp>=2.3,<3"       # optional: tests and the MCP server
+docker pull dolfinx/dolfinx:v0.9.0     # optional: otherwise the first simulation pulls it
+```
+
+### Getting started
+
+```bash
+python -m pytest -q tests/                                     # run the tests
 python scripts/kirigami_cli.py validate specs/alternating.json # check a design
 python scripts/kirigami_cli.py simulate specs/alternating.json # run it (minutes; needs Docker)
 python webapp/server.py                                        # or use the web app, at localhost:8000
 ```
+
+The command line takes a design as a JSON **spec**. The KiriSMILES string goes inside it, as
+`"pattern": {"generator": "kirismiles", "params": {"code": "<string>"}}`, next to the sheet,
+material and loading (example in [section 2](#2-generating-structures)). The file name is up to
+you; the spec's `name` sets the output folder `results/runs/<name>/`. Stored results are found by
+the geometry key of the design, not by the file name.
+
+Simulations start their own container. To run one of the scripts in `scripts/` that need the
+solver yourself, use `./run.sh`, which starts the same image with this folder mounted
+(macOS and Linux, or Git Bash on Windows):
+
+```bash
+./run.sh python3 scripts/single_cut_buckling.py
+```
+
+The first solve of each model takes longer, while FEniCSx compiles its forms; the compiled forms
+are kept in `.cache/` for later runs.
 
 ## 1. Describing structures: KiriSMILES
 
@@ -438,4 +482,5 @@ results/corpus/        corpus table and figure (scripts/corpus.py)
 results/tools/         figures of TOOLS.md (scripts/plot_api_workflow.py, screenshot_webapp.py)
 results/runs/<name>/   outputs of CLI runs (spec, JSON summaries, cut files, GIFs)
 run.sh                 runs a command in the FEniCSx container
+requirements.txt       Python packages for the host side (the solver is in Docker)
 ```
