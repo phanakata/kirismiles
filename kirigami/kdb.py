@@ -16,6 +16,10 @@ Four kinds of record, each a JSON document validated by the models below:
              boundary conditions, method and settings, links to raw data, derived
              properties (dimensional and dimensionless), provenance.
 
+Raw data (npz fields, JSON curves, GIFs) is linked, not stored: Result.data maps a
+name to a DataRef with the path, size, sha256, format and, for npz, every array's
+shape, dtype and meaning, plus an optional URL of an archived copy.
+
 A design has many specimens, a specimen many results. IDs are content hashes, so
 rebuilding the database from the same sources gives the same IDs.
 
@@ -25,9 +29,9 @@ import hashlib
 import json
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-SCHEMA_VERSION = "kdb/0.1"
+SCHEMA_VERSION = "kdb/0.2"     # 0.2: raw data as DataRef (path, sha256, arrays); 0.1 paths still read
 
 
 def hid(prefix, obj, n=12):
@@ -177,6 +181,67 @@ class Provenance(BaseModel):
     notes: Optional[str] = None
 
 
+class ArrayInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    shape: list[int]
+    dtype: str
+    description: Optional[str] = None
+
+
+class DataRef(BaseModel):
+    """A raw-data file that a result links to. The file is not copied into the
+    database: the record says where it is, what is in it, and how to check that a
+    copy is the original (sha256)."""
+    model_config = ConfigDict(extra="forbid")
+    path: str = Field(description="path relative to the repository root")
+    key: Optional[str] = Field(None, description="entry inside the file, e.g. one curve of a "
+                                                 "JSON file holding several")
+    format: Optional[str] = Field(None, description="npz, json, csv, gif, png, ...")
+    bytes: Optional[int] = None
+    sha256: Optional[str] = None
+    arrays: dict[str, ArrayInfo] = Field({}, description="npz: name -> shape, dtype, meaning")
+    description: Optional[str] = None
+    url: Optional[str] = Field(None, description="archived copy (e.g. a Zenodo DOI or a "
+                                                 "storage URL), when the file is published")
+    available: bool = Field(True, description="False when the file was missing at build time")
+
+
+def data_ref(path, root=".", key=None, description=None, array_descriptions=None, url=None):
+    """DataRef for a file: size, sha256 and, for npz, the name, shape and dtype of every
+    array (read from the .npy headers, without loading the arrays)."""
+    import zipfile
+    from pathlib import Path
+    import numpy as np
+    f = Path(root) / path
+    ref = dict(path=str(path).replace("\\", "/"), key=key, format=f.suffix.lstrip(".") or None,
+               description=description, url=url)
+    if not f.is_file():
+        return DataRef(**ref, available=False)
+    h = hashlib.sha256()
+    with open(f, "rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            h.update(block)
+    ref.update(bytes=f.stat().st_size, sha256=h.hexdigest())
+    if f.suffix == ".npz":
+        desc = array_descriptions or {}
+        arrays = {}
+        with zipfile.ZipFile(f) as z:
+            for name in z.namelist():
+                with z.open(name) as fh:
+                    version = np.lib.format.read_magic(fh)
+                    read = (np.lib.format.read_array_header_1_0 if version == (1, 0)
+                            else np.lib.format.read_array_header_2_0)
+                    shape, _, dtype = read(fh)
+                a = name[:-4] if name.endswith(".npy") else name
+                d = desc.get(a)
+                if d is None:                   # pattern entries such as "eps*"
+                    d = next((v for k, v in desc.items() if k.endswith("*") and a.startswith(k[:-1])),
+                             None)
+                arrays[a] = ArrayInfo(shape=list(shape), dtype=str(dtype), description=d)
+        ref["arrays"] = arrays
+    return DataRef(**ref)
+
+
 class Result(_Rec):
     result_id: str
     specimen_id: str
@@ -185,9 +250,22 @@ class Result(_Rec):
     completed: Optional[bool] = None
     loading: Loading
     method: Method
-    data: dict[str, str] = Field({}, description="name -> path of raw data (npz/json/csv)")
+    data: dict[str, DataRef] = Field({}, description="name -> raw-data file (linked, not stored)")
     properties: dict[str, Quantity] = {}
     provenance: Provenance
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def _paths_to_refs(cls, v):
+        """Records of kdb/0.1 gave each raw-data file as a bare path ('file#key'
+        for an entry inside it)."""
+        out = {}
+        for name, r in (v or {}).items():
+            if isinstance(r, str):
+                p, _, k = r.partition("#")
+                r = {"path": p, "key": k or None}
+            out[name] = r
+        return out
 
 
 RECORDS = {"material": Material, "design": Design, "specimen": Specimen, "result": Result}

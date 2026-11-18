@@ -27,9 +27,34 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from kirigami import grammar, kirismiles as K, spec as S                    # noqa: E402
 from kirigami.kdb import (Cylinder, Design, FlatSheet, Generator, Loading, Material,  # noqa: E402
-                          Method, Provenance, Quantity, Reference, Result, Specimen, hid)
+                          Method, Provenance, Quantity, Reference, Result, Specimen, data_ref, hid)
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# what the arrays of each raw-data file mean (kirigami/api.py, scripts/tube_triangular.py)
+FLAT_ARRAYS = {
+    "L": "sheet length (mm)", "W": "sheet width (mm)", "h": "thickness (mm)",
+    "Delta_c": "critical end displacement of linear buckling (mm)",
+    "F_unit": "in-plane force for a unit end displacement (N)",
+    "x": "reference node coordinates (mm)", "cells": "triangles, node indices",
+    "probe_names": "names of the probe points", "Delta": "end displacement per step (mm)",
+    "F": "force on the pulled end per step (N)", "U": "displacement of every node per step (mm)",
+    "probes": "displacement at the probe points per step (mm)",
+    "uz_max": "largest deflection per step (mm)",
+    "x0": "reference node coordinates (mm)", "modes": "buckling modes",
+}
+TUBE_ARRAYS = {
+    "X": "reference node coordinates of the tube (mm)",
+    "cells": "P2 triangles, node indices (first three are the vertices)",
+    "rolled": "displacement after rolling (mm)",
+    "eps*": "displacement at the applied strain in the name (mm)",
+    "final": "displacement at the last step (mm)",
+}
+FILE_DESCRIPTIONS = {"history": "load steps: force, displacements, sheet and mesh",
+                     "summary": "summary of the run", "spec": "design spec of the run",
+                     "provenance": "code version and solver image",
+                     "deformation": "animation of the deformation",
+                     "stress_strain": "stress-strain plot", "buckling": "buckling modes"}
 RUNS, TUBE = ROOT / "results" / "runs", ROOT / "results" / "tube"
 
 KNOWN_MATERIALS = {      # (E MPa, nu) -> name, reference
@@ -255,7 +280,9 @@ def flat_run(db, d):
     if summ.get("eloc_final") is not None:
         props["local_strain_final"] = Quantity(value=summ["eloc_final"], unit="1")
     props = {n: q for n, q in props.items() if q.value is not None and math.isfinite(q.value)}  # inf: no buckling
-    data = {Path(f).stem: f for f in summ.get("files", []) if (ROOT / f).exists()}
+    data = {Path(f).stem: data_ref(f, ROOT, description=FILE_DESCRIPTIONS.get(Path(f).stem),
+                                   array_descriptions=FLAT_ARRAYS)
+            for f in summ.get("files", []) if (ROOT / f).exists()}
     if not data:
         db.missing["flat run"]["raw data file"] += 1
     status = str(summ.get("status", ""))
@@ -329,7 +356,10 @@ def tube_runs(db):
                           "(kirigami/tube.py)", analysis="stretch after rolling",
                           mesh={"h_far": a["h_far"], "h_tip": a["h_tip"]},
                           image="dolfinx/dolfinx:v0.9.0"),
-            data={k: v for k, v in (("curve", src), ("fields", src[:-5] + ".npz"))
+            data={k: data_ref(v, ROOT, description=d, array_descriptions=TUBE_ARRAYS)
+                  for k, v, d in (("curve", src, "stress-strain rows, settings and provenance"),
+                                  ("fields", src[:-5] + ".npz", "displacement snapshots every "
+                                                                "0.005 of strain"))
                   if (ROOT / v).exists()},
             properties=props,
             provenance=Provenance(source=src, created=time.strftime(
@@ -372,7 +402,9 @@ def tube_runs(db):
                 result_id=hid("kr", {"src": src, "curve": curve}), specimen_id=sp.specimen_id,
                 kind=kind, loading=Loading(boundary="periodic" if curve != "experiment" else "clamped",
                                           max_strain=max(e)),
-                method=meth, data={"curve": f"{src}#{curve}"}, properties=props,
+                method=meth, data={"curve": data_ref(src, ROOT, key=curve,
+                                                     description="digitised strain-stress curve")},
+                properties=props,
                 provenance=Provenance(source=src, approximate=True, references=[cite],
                                       notes=ref.get("source"))))
 

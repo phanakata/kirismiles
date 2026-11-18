@@ -96,7 +96,7 @@
  "additionalProperties": false,
  "properties": {
   "schema_version": {
-   "default": "kdb/0.1",
+   "default": "kdb/0.2",
    "title": "Schema Version",
    "type": "string"
   },
@@ -184,5 +184,5 @@
  ],
  "title": "Specimen",
  "type": "object",
- "$id": "kdb/0.1/specimen"
+ "$id": "kdb/0.2/specimen"
 }

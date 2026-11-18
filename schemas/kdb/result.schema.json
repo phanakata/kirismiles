@@ -1,5 +1,145 @@
 {
  "$defs": {
+  "ArrayInfo": {
+   "additionalProperties": false,
+   "properties": {
+    "shape": {
+     "items": {
+      "type": "integer"
+     },
+     "title": "Shape",
+     "type": "array"
+    },
+    "dtype": {
+     "title": "Dtype",
+     "type": "string"
+    },
+    "description": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Description"
+    }
+   },
+   "required": [
+    "shape",
+    "dtype"
+   ],
+   "title": "ArrayInfo",
+   "type": "object"
+  },
+  "DataRef": {
+   "additionalProperties": false,
+   "description": "A raw-data file that a result links to. The file is not copied into the\ndatabase: the record says where it is, what is in it, and how to check that a\ncopy is the original (sha256).",
+   "properties": {
+    "path": {
+     "description": "path relative to the repository root",
+     "title": "Path",
+     "type": "string"
+    },
+    "key": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "entry inside the file, e.g. one curve of a JSON file holding several",
+     "title": "Key"
+    },
+    "format": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "npz, json, csv, gif, png, ...",
+     "title": "Format"
+    },
+    "bytes": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Bytes"
+    },
+    "sha256": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Sha256"
+    },
+    "arrays": {
+     "additionalProperties": {
+      "$ref": "#/$defs/ArrayInfo"
+     },
+     "default": {},
+     "description": "npz: name -> shape, dtype, meaning",
+     "title": "Arrays",
+     "type": "object"
+    },
+    "description": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Description"
+    },
+    "url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "archived copy (e.g. a Zenodo DOI or a storage URL), when the file is published",
+     "title": "Url"
+    },
+    "available": {
+     "default": true,
+     "description": "False when the file was missing at build time",
+     "title": "Available",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "path"
+   ],
+   "title": "DataRef",
+   "type": "object"
+  },
   "Loading": {
    "additionalProperties": true,
    "properties": {
@@ -308,7 +448,7 @@
  "additionalProperties": false,
  "properties": {
   "schema_version": {
-   "default": "kdb/0.1",
+   "default": "kdb/0.2",
    "title": "Schema Version",
    "type": "string"
   },
@@ -361,10 +501,10 @@
   },
   "data": {
    "additionalProperties": {
-    "type": "string"
+    "$ref": "#/$defs/DataRef"
    },
    "default": {},
-   "description": "name -> path of raw data (npz/json/csv)",
+   "description": "name -> raw-data file (linked, not stored)",
    "title": "Data",
    "type": "object"
   },
@@ -390,5 +530,5 @@
  ],
  "title": "Result",
  "type": "object",
- "$id": "kdb/0.1/result"
+ "$id": "kdb/0.2/result"
 }

@@ -87,7 +87,7 @@
  "additionalProperties": false,
  "properties": {
   "schema_version": {
-   "default": "kdb/0.1",
+   "default": "kdb/0.2",
    "title": "Schema Version",
    "type": "string"
   },
@@ -166,5 +166,5 @@
  ],
  "title": "Material",
  "type": "object",
- "$id": "kdb/0.1/material"
+ "$id": "kdb/0.2/material"
 }
