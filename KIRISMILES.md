@@ -338,7 +338,7 @@ The figure at the top of this page draws these strings. `tests/test_kirismiles.p
 that each one cuts exactly what the original generator in `kirigami/geometry.py` cuts (same
 geometry key).
 
-**Beyond the paper.** `specs/corpus/literature.json` writes 19 kirigami designs from the
+**Beyond the paper.** `specs/corpus/literature.json` writes 20 kirigami designs from the
 literature as strings, from 7 to 674 characters:
 - the actuator cells of *Kirigami Actuators*, including the lift cell with relief cuts, whose
   coordinates come from the original vector design file;

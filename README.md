@@ -185,7 +185,7 @@ each string cuts exactly what the matching generator in `kirigami/geometry.py` c
 
 ![The paper's configurations, each drawn from its KiriSMILES string](results/kirismiles/paper.png)
 
-Designs from other papers are written the same way. A [corpus of 19 published designs](KIRISMILES.md#the-papers-configurations)
+Designs from other papers are written the same way. A [corpus of 20 published designs](KIRISMILES.md#the-papers-configurations)
 covers rotating squares and triangles, hierarchical cuts, kirigami skins and shells, a
 machine-learning grid, graded and random patterns, and precursors of 3D assemblies, in 7 to 674
 characters each (`specs/corpus/literature.json`, table in
@@ -467,7 +467,7 @@ scripts/               paper-reproduction drivers, plotting, GIF rendering
 specs/                 example design specs
 specs/rs_thickness/    rotating-squares validation runs (thickness, loading, hinge width)
 specs/star/            multistable star pattern runs (three hinge widths, neo-Hookean membrane)
-specs/corpus/          19 kirigami designs from the literature as strings (scripts/corpus.py,
+specs/corpus/          20 kirigami designs from the literature as strings (scripts/corpus.py,
                        scripts/corpus_tex.py for a LaTeX table, scripts/make_piecewise_corpus.py
                        for the graded and random-link strings)
 scripts/verify/        rigid-unit mode counts that check the hierarchical (fractal) cut strings

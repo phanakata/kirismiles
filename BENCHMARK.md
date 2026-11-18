@@ -415,6 +415,11 @@ The experiment measures ε̄ between markers on rows 3 and 18 of 20 instead.
 - In the 8-row shell the pop-ups start next to the top end (the end the triangles point to)
   at ε̄ ≈ 0.045, and spread down. They reach the third row from the bottom at ε̄ = 0.10, the
   order seen in their experiments.
+- The popped region is a band of whole rows. Within a popped row the radial displacement is the
+  same, to within 2%, in every 45° sector, so the pop-ups vary along the axis only. The band grows
+  rather than popping all at once because a row softens as it pops, which is the stress drop
+  after the peak. Further stretching goes mostly into the popped rows, and the front moves one
+  row at a time, as in other propagating instabilities.
 - Going from 4 to 8 rows moves the peak to the experimental strain and removes the late rise.
   The end rows stay nearly round, at 0.2–0.6 mm radial displacement against 1.4–1.7 mm in the
   popped rows. With markers, the interior strain of the 8-row shell is ~12% larger than ε̄
