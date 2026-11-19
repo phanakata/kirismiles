@@ -1,6 +1,7 @@
 """Simulation entry points that take a JSON spec (kirigami/spec.py).
 
 Run inside the FEniCSx container:
+    python3 -m kirigami.api stiffness specs/a.json [b.json ...] # seconds: in-plane stiffness only
     python3 -m kirigami.api buckle   specs/alternating.json   # seconds: stiffness, Delta_c, F_c
     python3 -m kirigami.api simulate specs/alternating.json   # minutes: full post-buckling
     python3 -m kirigami.api export   specs/alternating.json   # exact cut paths (patterns with solids)
@@ -75,6 +76,36 @@ def buckle(spec, nev=4):
                files=[str(out / "buckling.npz")])
     (out / "buckling.json").write_text(json.dumps(res, indent=2))
     return res
+
+
+def stiffness(spec):
+    """Linear in-plane stiffness F/Delta of the flat cut sheet (small strain, no buckling).
+    The cheapest response the engine computes: one plane-stress solve."""
+    t0 = time.time()
+    out = RUNS / spec["name"]
+    out.mkdir(parents=True, exist_ok=True)
+    sh = _sheet(spec)
+    _, _, F1 = sh.solve_inplane(1.0)
+    res = dict(name=spec["name"], analysis="stiffness",
+               n_cells=int(sh.msh.topology.index_map(2).size_local),
+               stiffness_N_per_mm=F1, seconds=round(time.time() - t0, 1))
+    (out / "stiffness.json").write_text(json.dumps(res, indent=2))
+    return res
+
+
+def stiffness_batch(paths):
+    """stiffness() of several specs in one process, so the solver starts once.
+    A spec that fails is reported (ok=False) without stopping the others."""
+    results = []
+    for path in paths:
+        try:
+            spec = S.load(path)
+            errs = S.validate(spec)
+            results.append(dict(name=spec.get("name"), ok=False, errors=errs) if errs
+                           else dict(ok=True, **stiffness(spec)))
+        except Exception as exc:
+            results.append(dict(spec=str(path), ok=False, errors=[f"{type(exc).__name__}: {exc}"]))
+    return dict(analysis="stiffness_batch", results=results)
 
 
 def _pair_angles(probes, names):
@@ -247,6 +278,9 @@ def export_stl(spec, thickness, kerf):
 
 if __name__ == "__main__":
     cmd, path = sys.argv[1], sys.argv[2]
+    if cmd == "stiffness":                       # one or more specs: stiffness spec1.json spec2.json ...
+        print(json.dumps(stiffness_batch(sys.argv[2:])))
+        sys.exit(0)
     spec = S.load(path)
     errs = S.validate(spec)
     if errs:
