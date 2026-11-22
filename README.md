@@ -330,8 +330,7 @@ For the alternating pattern `P5x40S1/2O0[V36@0,0]N20E4` (PET, ν = 0.38):
 ![MuJoCo vs FEniCSx](results/mujoco_check/fig_mujoco.png)
 
 Use MuJoCo for robotics, dynamics and large-scale studies, and the FEniCSx engine for accurate forces
-and large deformations. MuJoCo 3.x used different elastic constants; `kirigami/mjcf.py` maps them, so
-either version can be used.
+and large deformations. All MuJoCo results here use MuJoCo 4.0.1 (`pip install "mujoco>=4.0.1"`).
 
 ### Designing kirigami by talking to an AI assistant (MCP)
 
@@ -500,7 +499,7 @@ kirigami/api.py        buckle / simulate / export / mesh from a spec (runs in th
 kirigami/export.py     laser-cut SVG/DXF and 3D-print STL
 kirigami/importer.py   laser-cut SVG/DXF back to a KiriSMILES string (curves, units, nesting)
 kirigami/jobs.py       run engine: job queue, one solve at a time, job records, orphaned-run recovery
-kirigami/mjcf.py       a design's mesh as a MuJoCo 2D flex (MJCF); MuJoCo 3.x/4.x material inputs
+kirigami/mjcf.py       a design's mesh as a MuJoCo 2D flex (MJCF)
 scripts/kirigami_cli.py  one JSON-in/JSON-out entry point for people and agents
 webapp/                local web app (server.py + static/index.html): samples, editor, run, GIF
 mcp_server/server.py   MCP server: the tools for AI assistants (registered in .mcp.json)
