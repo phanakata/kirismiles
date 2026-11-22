@@ -48,3 +48,6 @@ scripts/smoke_test.py
 # kirigami shell: paper-only figure and memory traces
 results/tube/fig_shell.png
 *.mem
+
+# MuJoCo runtime warnings
+MUJOCO_LOG.TXT

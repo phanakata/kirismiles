@@ -43,6 +43,7 @@ python scripts/kirigami_cli.py export   specs/yaw.json           # cut.svg + cut
 python scripts/kirigami_cli.py stl      specs/x.json --thickness 0.5 --kerf 0.4   # for 3D printing
 python scripts/kirigami_cli.py import   my_cut.svg --spec specs/mine.json   # a cut file as a string
 python scripts/kirigami_cli.py mesh     specs/mine.json          # the FEM mesh for other codes
+python scripts/export_mujoco.py --mesh results/runs/mine/mesh.vtk --L 120 --nu 0.38 --out mine.xml   # MuJoCo model
 ```
 
 Every command prints one line of JSON. For the spec above:
@@ -80,6 +81,14 @@ $ python scripts/kirigami_cli.py export api_example.json
   and `mesh.xdmf`. The elements are linear triangles in mm, and the nodes along every cut
   are already duplicated, so the two lips of a cut are free edges. The `.msh` also keeps the
   cut lines (physical group 10) and the cut mouths at free edges (11).
+- **MuJoCo.** `scripts/export_mujoco.py` turns `mesh.vtk` into an MJCF model (needs
+  `pip install "mujoco>=4.0.1"` only to load it): the sheet is a 2D flex shell with E, ν and h,
+  the x = 0 end fixed and the x = L end on a grip body with a slide joint `pull`. A row of ghost
+  nodes outside each end makes the ends clamps rather than hinges. Set the grip's position to
+  stretch the sheet; its reaction is `-qfrc_passive` at the `pull` joint. `scripts/mujoco_check.py`
+  compares MuJoCo's quasi-static force–strain curve with the FEniCSx engine and
+  `scripts/mujoco_gif.py` renders a gripper pulling the sheet. MuJoCo's bending is approximate
+  (no Poisson coupling, twisting too stiff); README.md says by how much.
 
 ## Python API
 

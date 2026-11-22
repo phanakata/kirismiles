@@ -9,3 +9,4 @@ Pillow
 # Optional:
 #   pytest            to run the tests
 #   mcp>=2.3,<3       the MCP server for AI assistants (also brings pydantic, used by kirigami/kdb.py)
+#   mujoco>=4.0.1     MuJoCo export and checks (scripts/export_mujoco.py, mujoco_check.py, mujoco_gif.py)

@@ -289,9 +289,49 @@ The notation, the design identity and the operations are what such a service wou
 - **Fabrication.** Laser-cut SVG/DXF and 3D-print STL files can be exported from any design.
 - **In and out.** A laser-cut SVG or DXF can be imported as a string, so an existing design
   joins the platform in one step, and the finite element mesh of any design can be exported
-  for other codes (gmsh, Abaqus, Nastran, VTK, XDMF).
+  for other codes (gmsh, Abaqus, Nastran, VTK, XDMF), or as a MuJoCo model for robotics
+  (below).
 
 [`TOOLS.md`](TOOLS.md) has the commands and details.
+
+### Kirigami in MuJoCo, for robotics
+
+Any design can also be exported to [MuJoCo](https://mujoco.org), the physics engine used for robot
+learning, where it can be put in a robot scene, simulated in many copies at once on a GPU
+(MuJoCo Warp, MJX) for training or design sweeps, or used as a digital twin of a kirigami gripper or
+skin. The design's mesh becomes a MuJoCo 2D flex shell, clamped at one end and held by a grip at the
+other:
+
+```bash
+pip install "mujoco>=4.0.1"
+python scripts/kirigami_cli.py mesh specs/<design>.json              # the design's mesh (mesh.vtk)
+python scripts/export_mujoco.py --mesh results/runs/<name>/mesh.vtk --L 120 --nu 0.38 --out design.xml
+```
+
+`scripts/mujoco_check.py` computes MuJoCo's quasi-static force–strain curve of a design and compares
+it with the FEniCSx engine, and `scripts/mujoco_gif.py` renders a gripper pulling the sheet.
+
+**How far to trust it.** MuJoCo's flex is built for speed, not as a verified plate element. On an
+uncut sheet with the FEniCSx fields imposed (`scripts/pristine_fenics.py`, `scripts/pristine_mujoco.py`),
+MuJoCo 4.0.1 reproduces the in-plane stiffness exactly and simple bending within 2%, but its
+bending has no Poisson coupling: twisting is 1.3× (ν = 0) to 2× (ν = 0.38) too stiff, and bending of
+a plate with free edges up to 22% too stiff at ν = 0.38. The flex also has only linear triangles
+(no quadrilaterals or quadratic elements) and no static solver, so a quasi-static pull is computed by
+dynamic relaxation.
+
+For the alternating pattern `P5x40S1/2O0[V36@0,0]N20E4` (PET, ν = 0.38):
+- Before buckling, MuJoCo is 11% stiffer. About 5% of this comes from linear rather than quadratic
+  elements, about 3% from the coarser mesh, and the rest from the clamp and the relaxation tolerance.
+- Both codes buckle at the same strain.
+- After buckling, the force is 24–26% higher in MuJoCo and the largest deflection 13–25% lower,
+  with the same pattern of tilted flaps.
+- MuJoCo's relaxation stops converging beyond 0.3% strain, so only that range is compared.
+
+![MuJoCo vs FEniCSx](results/mujoco_check/fig_mujoco.png)
+
+Use MuJoCo for robotics, dynamics and large-scale studies, and the FEniCSx engine for accurate forces
+and large deformations. MuJoCo 3.x used different elastic constants; `kirigami/mjcf.py` maps them, so
+either version can be used.
 
 ### Designing kirigami by talking to an AI assistant (MCP)
 
@@ -460,6 +500,7 @@ kirigami/api.py        buckle / simulate / export / mesh from a spec (runs in th
 kirigami/export.py     laser-cut SVG/DXF and 3D-print STL
 kirigami/importer.py   laser-cut SVG/DXF back to a KiriSMILES string (curves, units, nesting)
 kirigami/jobs.py       run engine: job queue, one solve at a time, job records, orphaned-run recovery
+kirigami/mjcf.py       a design's mesh as a MuJoCo 2D flex (MJCF); MuJoCo 3.x/4.x material inputs
 scripts/kirigami_cli.py  one JSON-in/JSON-out entry point for people and agents
 webapp/                local web app (server.py + static/index.html): samples, editor, run, GIF
 mcp_server/server.py   MCP server: the tools for AI assistants (registered in .mcp.json)
@@ -470,8 +511,13 @@ specs/star/            multistable star pattern runs (three hinge widths, neo-Ho
 specs/corpus/          20 kirigami designs from the literature as strings (scripts/corpus.py,
                        scripts/corpus_tex.py for a LaTeX table, scripts/make_piecewise_corpus.py
                        for the graded and random-link strings)
+scripts/export_mujoco.py  a design's mesh -> MuJoCo model (MJCF)
+scripts/mujoco_check.py   MuJoCo vs FEniCSx force-strain of a design (dynamic relaxation), figure
+scripts/mujoco_gif.py     GIF of a gripper pulling the sheet in MuJoCo
+scripts/pristine_*.py     uncut-sheet check of MuJoCo's membrane, bending and twist against FEniCSx
+results/mujoco_check/  MuJoCo comparison data, figures and GIFs
 scripts/verify/        rigid-unit mode counts that check the hierarchical (fractal) cut strings
-tests/                 tests of the notation, the import, the run engine and the MCP server
+tests/                 tests of the notation, the import, the run engine, the MCP server and the MuJoCo export
 scripts/check_strings.py  every simulated design survives geometry -> string -> geometry
 results/single_cut/    Fig. 2 data and figures
 results/configs/       multi-cut data (.npz), GIFs and figures
