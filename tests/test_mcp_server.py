@@ -68,22 +68,26 @@ def test_design_tools():
     assert "alternating" in text(samples)
 
 
-def test_solver_tools_answer_cleanly():
-    """With Docker off they explain why; with it on, a job id comes back."""
+def test_solver_tools_reject_bad_input_before_the_solver():
+    """Every call here fails its checks, so no solve is queued whatever the state of Docker
+    (the queue itself is tested with a fake solver in tests/test_jobs.py)."""
     async def go(s):
-        start = await s.call_tool("start_simulation", {"code": "V40@0,0", "max_stretch": 0.01,
-                                                       "steps": 2, "name": "mcp_test"})
-        missing = await s.call_tool("job_status", {"job_id": "00000000"})
-        return start, missing
-    start, missing = call(go)
-    r = json.loads(text(start))
-    if r["ok"] and r.get("reused"):                 # an identical run is already stored
-        assert r["state"] == "done" and r["completed"] and r["same_settings"]
-    elif r["ok"]:
-        assert r["state"] in ("queued", "running") and len(r["id"]) == 8
-    else:
-        assert "Docker" in r["errors"][0]
-    assert json.loads(text(missing)) == {"error": "no such job"}
+        return [await s.call_tool(name, args) for name, args in (
+            ("start_simulation", {"code": "V40@0,0", "max_stretch": 0.9}),
+            ("start_simulation", {"code": "V40@0,0", "steps": 0}),
+            ("start_simulation", {"code": "V40@0,0", "thickness_mm": -0.1}),
+            ("buckle", {"code": "V40@0,0", "thickness_mm": 0}),          # 0 used to mean "default"
+            ("check_design", {"code": "V40@0,0", "L": 0}),
+            ("job_status", {"job_id": "00000000"}),
+            ("wait_for_job", {"job_id": "00000000", "timeout_s": -5}),
+        )]
+    stretch, steps, thick, buckle0, sheet, missing, wait = [json.loads(text(r)) for r in call(go)]
+    assert not stretch["ok"] and "max_stretch" in stretch["errors"][0]
+    assert not steps["ok"] and "steps" in steps["errors"][0]
+    assert not thick["ok"] and "h > 0" in thick["errors"][0]
+    assert not buckle0["ok"] and "h > 0" in buckle0["errors"][0]
+    assert not sheet["valid"] and "L > 0" in sheet["problems"][0]
+    assert missing == wait == {"error": "no such job"}
 
 
 if __name__ == "__main__":

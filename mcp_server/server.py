@@ -16,7 +16,12 @@ results/runs/<name>/job.json, and runs that keep going if the session ends.
 
 Designs are written as KiriSMILES strings (KIRISMILES.md) on an L x W sheet in
 mm; every design tool also accepts a full JSON spec (kirigami/spec.py) instead.
+
+Tools report problems with the input as {"ok": false, "errors": [...]} (or "problems" for
+check_design) rather than raising, so an assistant can read and fix them.
 """
+from __future__ import annotations
+
 import io
 import json
 import sys
@@ -57,10 +62,12 @@ Kirigami sheets: design cut patterns, check them, and simulate how they deform w
 """
 
 server = MCPServer("kirismiles", instructions=INSTRUCTIONS)
-_runner, _runner_lock = None, threading.Lock()
+_runner: jobs.Runner | None = None
+_runner_lock = threading.Lock()
+MAX_WAIT_S = 300.0                          # wait_for_job never blocks a session longer
 
 
-def runner():
+def runner() -> jobs.Runner:
     """The job queue, started on first use (tools run in parallel threads)."""
     global _runner
     with _runner_lock:
@@ -71,8 +78,10 @@ def runner():
 
 # ------------------------------------------------------------------ helpers
 
-def make_spec(code=None, L=120.0, W=60.0, spec=None, name=None, settings=None):
-    """A complete spec from a KiriSMILES string or a spec dict, with defaults filled in."""
+def make_spec(code: str | None = None, L: float = 120.0, W: float = 60.0, spec: dict[str, Any] | None = None,
+              name: str | None = None, settings: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
+    """A complete spec from a KiriSMILES string or a spec dict, with defaults filled in.
+    Raises ValueError for neither or a section that is not an object."""
     if spec is None:
         if not code:
             raise ValueError("give a KiriSMILES string (code) or a full spec")
@@ -83,17 +92,24 @@ def make_spec(code=None, L=120.0, W=60.0, spec=None, name=None, settings=None):
         spec["name"] = name
     spec.setdefault("name", "design")
     for key, val in (settings or {}).items():
-        spec.setdefault(key, {}).update(val)
+        section = spec.setdefault(key, {})
+        if not isinstance(section, dict):
+            raise ValueError(f"spec[{key!r}] must be an object")
+        section.update(val)
     spec = S.load(spec)
     spec["name"] = jobs.safe_name(spec["name"])
     return spec
 
 
-def counts(pat):
+def _sheet_errors(L: float, W: float) -> list[str]:
+    return [] if L > 0 and W > 0 else [f"the sheet needs L > 0 and W > 0 (got L = {L}, W = {W})"]
+
+
+def counts(pat: dict[str, Any]) -> dict[str, int]:
     return {k: len(pat.get(k, ())) for k in ("cuts", "holes", "solids")}
 
 
-def render(pat, L, W, title=""):
+def render(pat: dict[str, Any], L: float, W: float, title: str = "") -> bytes:
     """PNG of a pattern: sheet grey, cuts red, clamped and pulled ends blue."""
     import matplotlib
     matplotlib.use("Agg")
@@ -117,11 +133,11 @@ def render(pat, L, W, title=""):
     return buf.getvalue()
 
 
-def summarize(job):
+def summarize(job: jobs.Job | None) -> dict[str, Any]:
     """The parts of a job record an assistant needs."""
     if job is None:
         return {"error": "no such job"}
-    out = {k: job.get(k) for k in ("id", "name", "state", "message", "steps")}
+    out: dict[str, Any] = {k: job.get(k) for k in ("id", "name", "state", "message", "steps")}
     out["progress_percent"] = round(100 * (job.get("progress") or 0))
     out["delta_mm"] = job.get("delta")
     res = job.get("result") or {}
@@ -144,17 +160,28 @@ def summarize(job):
     return out
 
 
-def run_dir(name):
+def run_dir(name: str) -> Path:
+    """The folder of a stored run; ValueError for a name outside results/runs or not there."""
     d = (RUNS / name).resolve()
     if RUNS.resolve() not in d.parents or not d.is_dir():
         raise ValueError(f"no run named {name!r}")
     return d
 
 
-def last_frame(gif_path):
+def _read_summary(d: Path) -> dict[str, Any] | None:
+    """A run's summary.json, or None while it is being written or if it is damaged."""
+    try:
+        s = json.loads((d / "summary.json").read_text())
+    except (OSError, ValueError):
+        return None
+    return s if isinstance(s, dict) else None
+
+
+def last_frame(gif_path: Path) -> bytes:
+    """The last frame of an animation, as PNG."""
     from PIL import Image as PILImage
     g = PILImage.open(gif_path)
-    g.seek(g.n_frames - 1)
+    g.seek(getattr(g, "n_frames", 1) - 1)          # a still image has one frame
     buf = io.BytesIO()
     g.convert("RGB").save(buf, format="PNG")
     return buf.getvalue()
@@ -163,13 +190,16 @@ def last_frame(gif_path):
 # -------------------------------------------------------------- design tools
 
 @server.tool(annotations=READ_ONLY)
-def check_design(code: str, L: float = 120.0, W: float = 60.0, min_gap: float = 1.0) -> dict:
+def check_design(code: str, L: float = 120.0, W: float = 60.0, min_gap: float = 1.0) -> dict[str, Any]:
     """Check a KiriSMILES design on an L x W mm sheet: instant.
 
     Returns valid (bool), the readable problems that make it impossible to cut or clamp
     (crossing cuts, ligaments narrower than min_gap mm, pieces cut loose, cuts reaching a
     clamped end), its canonical string, its geometry key (the design's identity), and the
     number of cuts, holes and solids."""
+    bad = _sheet_errors(L, W) + ([] if min_gap > 0 else [f"min_gap must be positive, not {min_gap}"])
+    if bad:
+        return {"valid": False, "problems": bad}
     try:
         d = ks.parse(code)
     except ValueError as e:
@@ -194,12 +224,16 @@ def preview_design(code: str | None = None, L: float = 120.0, W: float = 60.0,
 
 
 @server.tool(annotations=READ_ONLY)
-def list_samples() -> list[dict]:
+def list_samples() -> list[dict[str, Any]]:
     """The example designs in specs/: name, sheet size, and how the pattern is made."""
-    out = []
+    out: list[dict[str, Any]] = []
     for f in sorted((ROOT / "specs").glob("*.json")):
-        sp = S.load(f)
-        p = sp["pattern"]
+        try:
+            sp = S.load(f)
+            p = sp["pattern"]
+        except (OSError, KeyError, TypeError, ValueError) as e:     # one bad file: report it, go on
+            out.append({"name": f.stem, "file": f"specs/{f.name}", "error": str(e)})
+            continue
         out.append({"name": sp["name"], "file": f"specs/{f.name}", "sheet_mm": sp["sheet"],
                     "generator": p.get("generator", "explicit geometry"),
                     "params": p.get("params")})
@@ -208,7 +242,7 @@ def list_samples() -> list[dict]:
 
 @server.tool(annotations=WRITES)
 def export_cut_files(code: str | None = None, L: float = 120.0, W: float = 60.0,
-                     spec: dict[str, Any] | None = None, name: str | None = None) -> dict:
+                     spec: dict[str, Any] | None = None, name: str | None = None) -> dict[str, Any]:
     """Write laser-cut files (SVG and DXF) for a design to results/runs/<name>/.
     Patterns with solids need Docker, the others do not."""
     from kirigami import export as X
@@ -236,7 +270,7 @@ def export_cut_files(code: str | None = None, L: float = 120.0, W: float = 60.0,
 @server.tool(annotations=READ_ONLY)
 def import_cut_file(path: str | None = None, content: str | None = None, fmt: str = "svg",
                     L: float | None = None, W: float | None = None, tol: float = 0.01,
-                    digits: int = 3, min_gap: float = 0.5) -> dict:
+                    digits: int = 3, min_gap: float = 0.5) -> dict[str, Any]:
     """Convert a laser-cut file (SVG or DXF) into a KiriSMILES string. Give either `path` (a
     .svg or .dxf file on this machine) or `content` (the file's text, with fmt "svg" or
     "dxf"). The sheet is the closed rectangle around everything, unless L and W are given.
@@ -255,7 +289,7 @@ def import_cut_file(path: str | None = None, content: str | None = None, fmt: st
         if fmt not in ("svg", "dxf"):
             return {"ok": False, "errors": ['fmt must be "svg" or "dxf"']}
         tmp = tempfile.NamedTemporaryFile("w", suffix="." + fmt, delete=False, encoding="utf-8")
-        tmp.write(content)
+        tmp.write(content or "")
         tmp.close()
         src = tmp.name
     try:
@@ -272,7 +306,7 @@ def import_cut_file(path: str | None = None, content: str | None = None, fmt: st
 
 @server.tool(annotations=WRITES)
 def export_mesh(code: str | None = None, L: float = 120.0, W: float = 60.0,
-                spec: dict[str, Any] | None = None, name: str | None = None) -> dict:
+                spec: dict[str, Any] | None = None, name: str | None = None) -> dict[str, Any]:
     """Write the finite element mesh of a design, exactly as the solver uses it, to
     results/runs/<name>/: mesh.msh (gmsh), mesh.inp (Abaqus), mesh.bdf (Nastran), mesh.vtk
     and mesh.xdmf. Linear triangles in mm, with the nodes along every cut duplicated so that
@@ -289,11 +323,11 @@ def export_mesh(code: str | None = None, L: float = 120.0, W: float = 60.0,
 @server.tool(annotations=WRITES)
 def buckle(code: str | None = None, L: float = 120.0, W: float = 60.0,
            spec: dict[str, Any] | None = None, thickness_mm: float | None = None,
-           name: str | None = None) -> dict:
+           name: str | None = None) -> dict[str, Any]:
     """Quick linear analysis (seconds, needs Docker): the stretched sheet's stiffness before
     buckling, the stretch Delta_c at which it first buckles out of plane, and the force F_c.
     Fails with a reason if the solver is busy with another run."""
-    settings = {"material": {"h": thickness_mm}} if thickness_mm else None
+    settings = {"material": {"h": thickness_mm}} if thickness_mm is not None else None   # 0 is checked
     sp = make_spec(code, L, W, spec, name, settings)
     errs = S.validate(sp)
     if errs:
@@ -307,7 +341,7 @@ def start_simulation(code: str | None = None, L: float = 120.0, W: float = 60.0,
                      steps: int = 40, thickness_mm: float | None = None,
                      E_MPa: float | None = None, nu: float | None = None,
                      boundary: str | None = None, in_plane: bool | None = None,
-                     name: str | None = None, reuse: bool = True) -> dict:
+                     name: str | None = None, reuse: bool = True) -> dict[str, Any]:
     """Queue a full nonlinear shell simulation (minutes, needs Docker): the sheet is stretched
     to max_stretch = Delta/L in `steps` load steps and its post-buckled shape is followed.
     Material: thickness_mm, E_MPa, nu (default PET: 0.127 mm, 3500 MPa, 0.38).
@@ -321,7 +355,9 @@ def start_simulation(code: str | None = None, L: float = 120.0, W: float = 60.0,
     nothing is solved; pass reuse=False to solve again."""
     if not 0 < max_stretch <= 0.6:
         return {"ok": False, "errors": ["max_stretch is Delta/L and must be in (0, 0.6]"]}
-    settings = {"load": {"Dmax_over_L": max_stretch, "steps": int(steps)}}
+    if steps < 1:
+        return {"ok": False, "errors": [f"steps must be at least 1, not {steps}"]}
+    settings: dict[str, dict[str, Any]] = {"load": {"Dmax_over_L": max_stretch, "steps": int(steps)}}
     bnd = {k: v for k, v in (("type", boundary), ("in_plane", in_plane)) if v is not None}
     if bnd:
         settings["boundary"] = bnd
@@ -347,48 +383,56 @@ def start_simulation(code: str | None = None, L: float = 120.0, W: float = 60.0,
 
 
 @server.tool(annotations=READ_ONLY)
-def job_status(job_id: str) -> dict:
+def job_status(job_id: str) -> dict[str, Any]:
     """A simulation job's state (queued, running, done, failed, cancelled, interrupted),
     progress, and when done its key results and files."""
     return summarize(runner().get(job_id))
 
 
 @server.tool(annotations=READ_ONLY)
-def wait_for_job(job_id: str, timeout_s: float = 120.0) -> dict:
-    """Wait up to timeout_s seconds (at most 300) for a job to finish, then report its
+def wait_for_job(job_id: str, timeout_s: float = 120.0) -> dict[str, Any]:
+    """Wait up to timeout_s seconds (0 to 300) for a job to finish, then report its
     status. Saves repeated job_status calls while a simulation runs."""
     import time
+    limit = min(max(float(timeout_s), 0.0), MAX_WAIT_S)
     t0 = time.time()
     while True:
         job = runner().get(job_id)
-        if job is None or job["state"] not in jobs.ACTIVE or time.time() - t0 > min(timeout_s, 300):
+        if job is None or job["state"] not in jobs.ACTIVE or time.time() - t0 >= limit:
             return summarize(job)
-        time.sleep(5)
+        time.sleep(min(5.0, max(limit - (time.time() - t0), 0.1)))
 
 
 @server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True,
                                       open_world_hint=False))
-def cancel_job(job_id: str) -> dict:
+def cancel_job(job_id: str) -> dict[str, Any]:
     """Stop a queued or running simulation. Steps already solved stay in history.npz."""
     return summarize(runner().cancel(job_id))
 
 
 @server.tool(annotations=READ_ONLY)
-def list_jobs(limit: int = 20) -> list[dict]:
-    """Recent simulation jobs from every front end (this server, the web app, scripts)."""
-    return [summarize(j) for j in runner().list(limit)]
+def list_jobs(limit: int = 20) -> list[dict[str, Any]]:
+    """Recent simulation jobs from every front end (this server, the web app, scripts);
+    limit from 1 to 200."""
+    return [summarize(j) for j in runner().list(min(max(int(limit), 1), 200))]
 
 
 # ------------------------------------------------------------------ results
 
 @server.tool(annotations=READ_ONLY)
-def list_runs(limit: int = 20) -> list[dict]:
-    """Finished simulations in results/runs/, newest first: name, status and key numbers."""
-    out = []
+def list_runs(limit: int = 20) -> list[dict[str, Any]]:
+    """Finished simulations in results/runs/, newest first: name, status and key numbers;
+    limit from 1 to 200."""
+    limit = min(max(int(limit), 1), 200)
+    out: list[dict[str, Any]] = []
     dirs = sorted((d for d in RUNS.glob("*") if (d / "summary.json").exists()),
                   key=lambda d: d.stat().st_mtime, reverse=True)
-    for d in dirs[:limit]:
-        s = json.loads((d / "summary.json").read_text())
+    for d in dirs:
+        if len(out) == limit:
+            break
+        s = _read_summary(d)
+        if s is None:                               # being written, or damaged: skip it
+            continue
         out.append({"name": d.name, "status": s.get("status"),
                     "final_stretch": s.get("strain_final"),
                     "max_out_of_plane_mm": s.get("uz_max_final_mm"),
@@ -398,7 +442,7 @@ def list_runs(limit: int = 20) -> list[dict]:
 
 @server.tool(annotations=READ_ONLY)
 def find_runs(code: str | None = None, L: float = 120.0, W: float = 60.0,
-              spec: dict[str, Any] | None = None) -> dict:
+              spec: dict[str, Any] | None = None) -> dict[str, Any]:
     """Stored simulations of this design, found by its geometry key, so the same design
     written in another way (or mirrored) is found too. Each entry gives the run name, whether
     it completed, its thickness, boundary and final stretch. Use it before start_simulation."""
@@ -414,12 +458,15 @@ def find_runs(code: str | None = None, L: float = 120.0, W: float = 60.0,
 def show_run(name: str) -> list[str | Image]:
     """A finished run: its summary, the final deformed shape, and the stress-strain plot."""
     d = run_dir(name)
-    out = []
+    out: list[str | Image] = []
     if (d / "summary.json").exists():
-        s = json.loads((d / "summary.json").read_text())
-        s.pop("force_N", None)                      # long series; the plot shows it
-        s.pop("Delta_mm", None)
-        out.append(json.dumps(s, indent=1))
+        s = _read_summary(d)
+        if s is None:
+            out.append("summary.json could not be read (still being written, or damaged)")
+        else:
+            s.pop("force_N", None)                  # long series; the plot shows it
+            s.pop("Delta_mm", None)
+            out.append(json.dumps(s, indent=1))
     if (d / "spec.json").exists():
         out.append("spec: " + (d / "spec.json").read_text())
     if (d / "deformation.gif").exists():
@@ -443,14 +490,25 @@ def spec_format() -> str:
     return (S.__doc__ or "") + "\nDefaults: " + json.dumps(S.DEFAULTS)
 
 
+def _port(text: str) -> int:
+    import argparse
+    try:
+        port = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a port number") from None
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError(f"the port must be 1 to 65535, not {port}")
+    return port
+
+
 if __name__ == "__main__":
     import argparse
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("--http", action="store_true",
                     help="serve over HTTP for several clients, instead of stdio for one")
     ap.add_argument("--host", default="127.0.0.1",
                     help="address to listen on (no authentication: trusted networks only)")
-    ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--port", type=_port, default=8765)
     a = ap.parse_args()
     if a.http:
         server.run(transport="streamable-http", host=a.host, port=a.port)

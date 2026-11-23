@@ -38,8 +38,12 @@ files = [
     "kirigami/jobs.py",
     "kirigami/importer.py",
     "kirigami/provenance.py",
+    "webapp/server.py",
+    "mcp_server/server.py",
 ]
 python_version = "3.12"
+explicit_package_bases = true         # webapp/server.py and mcp_server/server.py are two modules
+mypy_path = "."
 ignore_missing_imports = true        # dolfinx, gmsh, mujoco have no stubs here
 follow_imports = "silent"
 warn_unused_ignores = true
