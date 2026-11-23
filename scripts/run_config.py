@@ -5,8 +5,12 @@ Configurations are defined in CONFIGS below. Each run writes
 results/configs/<name>.npz with the load history, the measured quantities and
 P1 snapshots of the displacement at every step (for animations).
 """
+from __future__ import annotations
+
 import sys
 import time
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import numpy as np
 from dolfinx import fem, geometry, plot
@@ -17,12 +21,12 @@ from kirigami.fvk import Material
 from kirigami.shell import ShellSheet
 
 OUT = "results/configs"
-PET = dict(E=3500.0, nu=0.38, h=0.127)
+PET: dict[str, Any] = dict(E=3500.0, nu=0.38, h=0.127)
 PITCH_MESH = dict(h_far=3.0, h_cut=0.8, refine_dist=(1.0, 8.0))
 
 # mesh: geometry function + kwargs; ell: length scale for the initial buckled
 # guess; probes: named points where u is recorded; Dmax: final Delta (mm)
-CONFIGS = {
+CONFIGS: dict[str, dict[str, Any]] = {
     # Fig. 2 check against the FvK result
     "single_cut": dict(mesh=(geo.single_cut, dict(L=182.0, W=100.0, b=80.0)),
                        ell=80.0, Dmax=0.5, steps=20,
@@ -90,7 +94,8 @@ CONFIGS = {
 }
 
 
-def probe_fn(msh, pts):
+def probe_fn(msh: Any, pts: Sequence[tuple[float, float]]) -> Callable[[Any], np.ndarray]:
+    """A function giving a displacement Function's values at the points pts (x, y) of the mesh."""
     pts3 = np.array([[x, y, 0.0] for x, y in pts])
     tree = geometry.bb_tree(msh, 2)
     coll = geometry.compute_colliding_cells(msh, geometry.compute_collisions_points(tree, pts3), pts3)
@@ -98,7 +103,8 @@ def probe_fn(msh, pts):
     return lambda f: np.array([f.eval(p, c) for p, c in zip(pts3, cells)])
 
 
-def run(name):
+def run(name: str) -> None:
+    """Buckle, then follow the post-buckled shell of configuration `name` (CONFIGS)."""
     cfg = CONFIGS[name]
     t0 = time.time()
     gfun, gkw = cfg["mesh"]
@@ -121,7 +127,7 @@ def run(name):
     # deflection of order 1e-3 h
     f_imp = 1e-3 * mat.h * mat.D / cfg["ell"] ** 4 * mode
 
-    def seed(D, u, s):
+    def seed(D: float, u: Any, s: Any) -> None:
         if D > Dc and np.max(np.abs(u.x.array[zmap])) < 0.1 * mat.h:
             u.x.array[zmap] = 0.5 * np.sqrt(cfg["ell"] * (D - Dc)) * mz.x.array
 
@@ -129,9 +135,9 @@ def run(name):
     u1 = fem.Function(V1)
     probe = probe_fn(msh, list(cfg["probes"].values()))
     cells, _, x = plot.vtk_mesh(V1)
-    hist = dict(Delta=[], F=[], U=[], probes=[], uz_max=[])
+    hist: dict[str, list[Any]] = dict(Delta=[], F=[], U=[], probes=[], uz_max=[])
 
-    def record(D, u, s):
+    def record(D: float, u: Any, s: Any) -> None:
         # Saved after every step, so an interrupted run keeps its history
         u1.interpolate(u)
         hist["Delta"].append(D)
@@ -142,7 +148,7 @@ def run(name):
         np.savez(f"{OUT}/{name}.npz", L=L, W=gkw["W"], h=mat.h, Delta_c=Dc, F_unit=F1,
                  x=x[:, :2], cells=cells.reshape(-1, 4)[:, 1:],
                  probe_names=np.array(list(cfg["probes"])),
-                 **{k: np.array(v) for k, v in hist.items()})
+                 **{k: np.array(v) for k, v in hist.items()})  # type: ignore[arg-type]  # numpy stub: **kwds as bool
 
     Deltas = np.concatenate([[0.5 * Dc], np.geomspace(1.05 * Dc, cfg["Dmax"], cfg["steps"])])
     sh.solve(Deltas, f_imp=f_imp, observers=(record,), predictor=seed)
@@ -152,6 +158,10 @@ def run(name):
 
 if __name__ == "__main__":
     import os
+    unknown = [n for n in sys.argv[1:] if n not in CONFIGS]
+    if unknown or len(sys.argv) < 2:
+        sys.exit(f"usage: python3 scripts/run_config.py <name> [...]; unknown {unknown}; "
+                 f"configurations: {', '.join(CONFIGS)}")
     os.makedirs(OUT, exist_ok=True)
     for n in sys.argv[1:]:
         run(n)

@@ -8,9 +8,12 @@ expressed design drawn from its string). Needs only numpy and matplotlib.
 
 Usage: python scripts/corpus.py
 """
+from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import matplotlib
@@ -28,10 +31,14 @@ OUT = ROOT / "results" / "corpus"
 INK, PAPER, HOLE = "#0b0b0b", "#e9eef4", "#ffffff"
 
 
-def evaluate(e):
+def evaluate(e: dict[str, Any]) -> dict[str, Any]:
+    """Canonical form, key, problems and size of one corpus entry; with a generator, whether
+    the string cuts the same geometry. KeyError naming a missing field (code, L, W)."""
     code, L, W = e["code"], e["L"], e["W"]
+    if not (L > 0 and W > 0):
+        raise ValueError(f"{e.get('id', code)}: the sheet needs L > 0 and W > 0")
     pat = ks.pattern(code, L, W)
-    r = dict(canonical=ks.canonical(code), key=ks.geometry_key(code, L, W),
+    r: dict[str, Any] = dict(canonical=ks.canonical(code), key=ks.geometry_key(code, L, W),
              problems=ks.check(code, L, W, min_gap=e.get("min_gap", 1.0)), chars=len(code),
              pieces=len(pat["cuts"]) + len(pat["holes"]) + len(pat["solids"]), pattern=pat)
     if "generator" in e:
@@ -41,23 +48,25 @@ def evaluate(e):
     return r
 
 
-def draw(ax, pat, L, W):
+def draw(ax: Any, pat: dict[str, Any], L: float, W: float) -> None:
     ax.add_patch(Rectangle((0, 0), L, W, facecolor=PAPER, edgecolor="none"))
     for h in pat["holes"]:
         ax.add_patch(Polygon(h, closed=True, facecolor=HOLE, edgecolor=INK, lw=0.25))
     for s in pat["solids"]:
         ax.add_patch(Polygon(s, closed=True, facecolor=PAPER, edgecolor="none"))
-    for c in pat["cuts"]:
-        c = np.asarray(c)
+    for cut in pat["cuts"]:
+        c = np.asarray(cut)
         ax.plot(c[:, 0], c[:, 1], color=INK, lw=0.35, solid_capstyle="butt")
     ax.set(xlim=(0, L), ylim=(0, W), aspect="equal")
     ax.set_axis_off()
 
 
-def main():
+def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     entries = json.loads(SRC.read_text(encoding="utf-8"))["entries"]
-    rows, shown, failed = [], [], []
+    rows: list[str] = []
+    shown: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    failed: list[tuple[Any, ...]] = []
     for e in entries:
         refs = ", ".join(e["refs"])
         if "code" not in e:

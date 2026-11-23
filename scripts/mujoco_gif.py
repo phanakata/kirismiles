@@ -10,8 +10,12 @@ steps are interpolated linearly. True scale unless --zscale is given (then said 
     python scripts/mujoco_gif.py --mesh results/runs/<mesh run>/mesh.vtk --states results/mujoco_check/wf_states
         --L 120 --W 60 --out results/mujoco_check/wf_gripper.gif --title "P5x40S1/2O0[V36@0,0]N20E4"
 """
+from __future__ import annotations
+
 import argparse
 import sys
+from collections.abc import Sequence
+from typing import cast
 from pathlib import Path
 
 import numpy as np
@@ -19,19 +23,20 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from kirigami import mjcf as K  # noqa: E402
+from kirigami.argtypes import count, count0, positive  # noqa: E402
 
 
-def look(pos, target):
+def look(pos: Sequence[float] | np.ndarray, target: Sequence[float] | np.ndarray) -> str:
     """MJCF camera attributes looking from pos at target, with world z up."""
-    pos, target = np.asarray(pos, float), np.asarray(target, float)
-    f = (target - pos) / np.linalg.norm(target - pos)
+    p0, t0 = np.asarray(pos, float), np.asarray(target, float)
+    f = (t0 - p0) / np.linalg.norm(t0 - p0)
     xa = np.cross(f, [0, 0, 1.0])
     xa /= np.linalg.norm(xa)
     ya = np.cross(xa, f)
-    return f'pos="{pos[0]:.4f} {pos[1]:.4f} {pos[2]:.4f}" xyaxes="{" ".join(f"{v:.4f}" for v in (*xa, *ya))}"'
+    return f'pos="{p0[0]:.4f} {p0[1]:.4f} {p0[2]:.4f}" xyaxes="{" ".join(f"{v:.4f}" for v in (*xa, *ya))}"'
 
 
-def scene_xml(x, cells, L, W, Dmax):
+def scene_xml(x: np.ndarray, cells: np.ndarray, L: float, W: float, Dmax: float) -> str:
     """Gripper + sheet, in metres. Every sheet node is a body with three slides (posed, not simulated)."""
     s = 1e-3
     Lm, Wm, Dm = L * s, W * s, Dmax * s
@@ -42,7 +47,7 @@ def scene_xml(x, cells, L, W, Dmax):
         '<joint type="slide" axis="1 0 0"/><joint type="slide" axis="0 1 0"/><joint type="slide" axis="0 0 1"/></body>'
         for i, p in enumerate(x))
 
-    def finger(name, x0, sgn, joint):
+    def finger(name: str, x0: float, sgn: float, joint: str) -> str:
         # jaw plates above and below the sheet end, a finger up to the rail, a carriage on the rail
         cx = x0 + sgn * jaw / 2
         return f"""<body name="{name}" pos="{cx:.5f} {Wm / 2:.5f} 0">{joint}
@@ -82,18 +87,21 @@ def scene_xml(x, cells, L, W, Dmax):
 </mujoco>"""
 
 
-def sheet_panel(x, cells, U_all, size, lim, vmax, zscale, elev=32, azim=-58):
+def sheet_panel(x: np.ndarray, cells: np.ndarray, U_all: np.ndarray, size: tuple[int, int],
+                lim: tuple[tuple[float, float], ...], vmax: float, zscale: float, elev: float = 32,
+                azim: float = -58) -> np.ndarray:
     """The sheet alone, deformed, coloured by out-of-plane displacement, from an oblique view."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     P = np.column_stack([x + U_all[:, :2], zscale * U_all[:, 2]])
     wc = U_all[cells, 2].mean(1)
     col = plt.cm.coolwarm(np.clip(0.5 + 0.5 * wc / vmax, 0, 1))
     w, h = size
     fig = plt.figure(figsize=(w / 100, h / 100), dpi=100)
-    ax = fig.add_axes([-0.1, -0.15, 1.2, 1.3], projection="3d", proj_type="ortho")
+    ax = cast(Axes3D, fig.add_axes((-0.1, -0.15, 1.2, 1.3), projection="3d", proj_type="ortho"))
     ax.add_collection3d(Poly3DCollection(P[cells], facecolors=col, edgecolors="none"))
     (x0, x1), (y0, y1), (z0, z1) = lim
     ax.set(xlim=(x0, x1), ylim=(y0, y1), zlim=(z0, z1))
@@ -101,23 +109,28 @@ def sheet_panel(x, cells, U_all, size, lim, vmax, zscale, elev=32, azim=-58):
     ax.view_init(elev=elev, azim=azim)
     ax.set_axis_off()
     fig.canvas.draw()
-    img = np.asarray(fig.canvas.buffer_rgba())[..., :3].copy()
+    img = np.asarray(fig.canvas.buffer_rgba())[..., :3].copy()   # type: ignore[attr-defined]  # Agg canvas
     plt.close(fig)
     return img
 
 
-def main():
+def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--mesh", required=True)
     p.add_argument("--states", required=True, help="folder of <step>_D<Delta>.npy from mujoco_check.py")
-    p.add_argument("--L", type=float, default=120.0)
-    p.add_argument("--W", type=float, default=60.0)
-    p.add_argument("--frames", type=int, default=80)
+    p.add_argument("--L", type=positive, default=120.0)
+    p.add_argument("--W", type=positive, default=60.0)
+    p.add_argument("--frames", type=count, default=80)
     p.add_argument("--out", required=True)
     p.add_argument("--title", default="")
-    p.add_argument("--steps", type=int, default=0, help="use only the first this many states (e.g. the relaxed ones)")
-    p.add_argument("--zscale", type=float, default=1.0, help="out-of-plane scale in the right panel (1 = true)")
+    p.add_argument("--steps", type=count0, default=0,
+                   help="use only the first this many states (e.g. the relaxed ones); 0: all")
+    p.add_argument("--zscale", type=positive, default=1.0, help="out-of-plane scale in the right panel (1 = true)")
     a = p.parse_args()
+    if not Path(a.mesh).is_file():
+        p.error(f"no mesh file {a.mesh}")
+    if not Path(a.states).is_dir():
+        p.error(f"no folder {a.states}")
     import mujoco
     from PIL import Image, ImageDraw
 
@@ -125,6 +138,8 @@ def main():
     side = np.where(x[:, 0] < 1e-6, -1, np.where(x[:, 0] > a.L - 1e-6, 1, 0))
     free = np.flatnonzero(side == 0)
     files = sorted(Path(a.states).glob("*_D*.npy"))[:a.steps or None]
+    if not files:
+        p.error(f"no <step>_D<Delta>.npy states in {a.states}")
     Ds = np.array([0.0] + [float(f.stem.split("_D")[1]) for f in files])
     Us = [np.zeros((len(free), 3))] + [np.load(f).astype(float) for f in files]   # mm: (u_x, u_y, w) per free node
 

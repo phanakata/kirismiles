@@ -17,6 +17,8 @@ Writes results/mujoco_check/<tag>.npz (Delta, F, w_max, w_rms, residual, iterati
 after the last saved step, so a long run can go in chunks.
 Material: E = 3500 MPa, h = 0.127 mm, nu = --nu in both codes.
 """
+from __future__ import annotations
+
 import argparse
 import sys
 import time
@@ -27,12 +29,13 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from kirigami import mjcf as K  # noqa: E402
+from kirigami.argtypes import count, nonneg, positive  # noqa: E402
 
 OUT = ROOT / "results" / "mujoco_check"
 E, H = 3500.0, 0.127
 
 
-def relax(a):
+def relax(a: argparse.Namespace) -> None:
     """Quasi-static load path by dynamic relaxation: the grip steps to each load value and MuJoCo integrates the sheet
     (explicit, selective mass scaling recomputed at every load step) with kinetic damping -- all velocities zeroed
     whenever the kinetic energy passes a peak -- until the free nodes' net force is below --tol of the pull force."""
@@ -58,7 +61,8 @@ def relax(a):
         Ds = np.concatenate([[0.5 * Dc], np.geomspace(1.05 * Dc, a.Dmax, a.steps)])
     else:
         Ds = np.linspace(a.Dmax / a.steps, a.Dmax, a.steps)
-    rows, t0 = [], time.time()
+    rows: list[tuple[float, ...]] = []
+    t0 = time.time()
     f_out = OUT / f"{a.tag}.npz"
     if a.resume and f_out.exists():          # continue after the last saved load step, from its state
         old = np.load(f_out)
@@ -68,7 +72,7 @@ def relax(a):
         Ds = Ds[Ds > rows[-1][0] * (1 + 1e-9)]
         print(f"resuming after Delta = {rows[-1][0]:.4f} ({len(rows)} steps saved)")
 
-    def scale(factor):
+    def scale(factor: float) -> np.ndarray:
         return K.set_armature(m, d, info, K.stiffness_diagonal(m, d, info, colour), a.dt, factor).ravel()
 
     if a.stop:
@@ -83,7 +87,8 @@ def relax(a):
         # the predictor of the FEniCS run (kirigami/api.py simulate, `seed`): past the linear threshold a still-flat
         # sheet is started on the buckled branch, w = 1/2 sqrt(ell (D - Dc)) phi; relaxation then finds MuJoCo's own
         # equilibrium, and the seed decays if MuJoCo's flat sheet is still stable there
-        if phi is not None and a.fenics and D > Dc and np.abs(d.qpos[adr[:, 2]]).max() < 0.1 * H:
+        if (phi is not None and w0 is not None and a.fenics and D > Dc
+                and np.abs(d.qpos[adr[:, 2]]).max() < 0.1 * H):
             ell = 30.0                                    # min(W, 30 mm), as in simulate
             d.qpos[adr[:, 2]] = 0.5 * np.sqrt(ell * (D - Dc)) * phi[info["free"]] - w0[info["free"]]
         mujoco.mj_forward(m, d)
@@ -138,7 +143,7 @@ def relax(a):
     print(f"done in {time.time() - t0:.0f} s")
 
 
-def plot(a):
+def plot(a: argparse.Namespace) -> None:
     """Force and max |w| against strain, FEniCS (--fenics) and MuJoCo (<tag>.npz). Only MuJoCo's relaxed steps
     (residual <= 10 tol) are drawn; if the run stopped relaxing, both curves end a little past the last relaxed step."""
     import matplotlib
@@ -177,30 +182,35 @@ def plot(a):
     print(f"wrote {OUT / (a.tag + '.png')}")
 
 
-def main():
-    p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+def main() -> None:
+    p = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     p.add_argument("--mesh")
     p.add_argument("--mode", help="buckling.npz of a FEniCS buckle run (imperfection = its mode 1)")
     p.add_argument("--fenics", help="history.npz of the FEniCS simulate run, for --plot")
-    p.add_argument("--L", type=float, default=120.0)
-    p.add_argument("--Dmax", type=float, default=12.0)
-    p.add_argument("--steps", type=int, default=40, help="load steps (as the FEniCS run)")
-    p.add_argument("--dt", type=float, default=1e-4, help="explicit step (masses are scaled to it)")
-    p.add_argument("--factor", type=float, default=6.0, help="mass scaling: m_eff >= factor K_ii dt^2")
-    p.add_argument("--tol", type=float, default=1e-4, help="relaxed when |net force on free nodes| < tol |F|")
-    p.add_argument("--rescale", type=int, default=2000, help="refresh the mass scaling every this many iterations")
-    p.add_argument("--stop", type=float, default=None, help="last load value to run (mm), keeping the step list")
+    p.add_argument("--L", type=positive, default=120.0)
+    p.add_argument("--Dmax", type=positive, default=12.0)
+    p.add_argument("--steps", type=count, default=40, help="load steps (as the FEniCS run)")
+    p.add_argument("--dt", type=positive, default=1e-4, help="explicit step (masses are scaled to it)")
+    p.add_argument("--factor", type=positive, default=6.0, help="mass scaling: m_eff >= factor K_ii dt^2")
+    p.add_argument("--tol", type=positive, default=1e-4, help="relaxed when |net force on free nodes| < tol |F|")
+    p.add_argument("--rescale", type=count, default=2000, help="refresh the mass scaling every this many iterations")
+    p.add_argument("--stop", type=positive, default=None, help="last load value to run (mm), keeping the step list")
     p.add_argument("--resume", action="store_true", help="continue from the saved <tag>.npz")
-    p.add_argument("--maxit", type=int, default=40000, help="iterations per load step at most")
-    p.add_argument("--imp", type=float, default=0.01, help="imperfection amplitude / h")
+    p.add_argument("--maxit", type=count, default=40000, help="iterations per load step at most")
+    p.add_argument("--imp", type=nonneg, default=0.01, help="imperfection amplitude / h")
     p.add_argument("--nu", type=float, default=0.0, help="Poisson ratio (as in the FEniCS run)")
-    p.add_argument("--bf", type=float, default=K.BENDING_FACTOR)
+    p.add_argument("--bf", type=positive, default=K.BENDING_FACTOR)
     p.add_argument("--tag", required=True)
     p.add_argument("--title", default="")
     p.add_argument("--plot", action="store_true", help="only plot what is saved")
     a = p.parse_args()
+    for f in (a.mode, a.fenics):
+        if f and not Path(f).is_file():
+            p.error(f"no such file: {f}")
     if a.plot:
         plot(a)
+    elif not a.mesh or not Path(a.mesh).is_file():
+        p.error("a run needs --mesh, the design's mesh.vtk")
     else:
         relax(a)
 

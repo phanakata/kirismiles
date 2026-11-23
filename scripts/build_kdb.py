@@ -12,6 +12,8 @@ Output (rebuilt from scratch each time; IDs are content hashes, so they are stab
 
   python scripts/build_kdb.py [--out results/kdb] [--limit N]
 """
+from __future__ import annotations
+
 import argparse
 import collections
 import json
@@ -22,10 +24,12 @@ import sqlite3
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from kirigami import grammar, kirismiles as K, spec as S                    # noqa: E402
+from kirigami.argtypes import count                                         # noqa: E402
 from kirigami.kdb import (Cylinder, Design, FlatSheet, Generator, Loading, Material,  # noqa: E402
                           Method, Provenance, Quantity, Reference, Result, Specimen, data_ref, hid)
 
@@ -68,17 +72,21 @@ FAMILY = {"alternating": "parallel slits (staggered)", "rotating_squares": "rota
           "yaw_cell": "yaw actuator cell"}
 
 
-LIG = {}                 # geometry key -> narrowest ligament (mm)
+LIG: dict[str, float] = {}     # geometry key -> narrowest ligament (mm)
 
 
 class DB:
-    def __init__(self):
-        self.recs = {k: {} for k in ("material", "design", "specimen", "result")}
-        self.problems = collections.Counter()
-        self.examples = collections.defaultdict(list)
-        self.missing = collections.defaultdict(collections.Counter)
+    """The records being built, by kind and ID, and the problems met on the way."""
 
-    def add(self, kind, rec):
+    def __init__(self) -> None:
+        self.recs: dict[str, dict[str, Any]] = {k: {} for k in ("material", "design", "specimen", "result")}
+        self.problems: collections.Counter[str] = collections.Counter()
+        self.examples: collections.defaultdict[str, list[str]] = collections.defaultdict(list)
+        self.missing: collections.defaultdict[str, collections.Counter[str]] = \
+            collections.defaultdict(collections.Counter)
+
+    def add(self, kind: str, rec: Any) -> str:
+        """Add a record (Material, Design, Specimen or Result) under its ID; returns the ID."""
         key = {"material": "material_id", "design": "design_id",
                "specimen": "specimen_id", "result": "result_id"}[kind]
         rid = getattr(rec, key)
@@ -88,12 +96,12 @@ class DB:
         self.recs[kind].setdefault(rid, rec)
         return rid
 
-    def problem(self, what, where):
+    def problem(self, what: str, where: object) -> None:
         self.problems[what] += 1
         if len(self.examples[what]) < 5:
             self.examples[what].append(str(where))
 
-    def material(self, E, nu, model="svk"):
+    def material(self, E: float, nu: float, model: str = "svk") -> str:
         name, ref = KNOWN_MATERIALS.get((float(E), float(nu)), (None, None))
         m = Material(material_id=Material.make_id(E, nu, model), name=name, model=model,
                      E=Quantity(value=float(E), unit="MPa"), nu=float(nu),
@@ -105,7 +113,7 @@ class DB:
 KERF_RE = r"k\d+(?:\.\d+)?"
 
 
-def split_kerf(canon, L, W):
+def split_kerf(canon: str, L: float, W: float) -> tuple[str, float | None]:
     """(design string, kerf). A kerf shared by every cut of a free-form string is
     fabrication: it is taken out of the string and returned. Mixed widths are
     geometry and stay. The split is kept only if string + kerf cut the same sheet."""
@@ -113,11 +121,14 @@ def split_kerf(canon, L, W):
     ks = set(re.findall(KERF_RE, canon))
     if not ks or canon.startswith("P"):
         return canon, None
-    prims = K._flatten(K.parse(canon).items)
+    ff = K.parse(canon)
+    if not isinstance(ff, K.FreeForm):
+        return canon, None
+    prims = K._flatten(ff.items)
     widths = {getattr(p, "kerf", "n/a") for p in prims if hasattr(p, "kerf")}
     if len(widths) != 1 or None in widths:
         return canon, None
-    kerf = widths.pop()
+    kerf = float(widths.pop())
     bare = K.canonical(re.sub(KERF_RE, "", canon))
     back = f"({bare})k{K._n(kerf)}"
     if K.geometry_key(back, L, W) != K.geometry_key(canon, L, W):
@@ -125,7 +136,7 @@ def split_kerf(canon, L, W):
     return bare, float(kerf)
 
 
-def min_ligament(pat, tol=1e-6):
+def min_ligament(pat: dict[str, Any], tol: float = 1e-6) -> float:
     """Narrowest ligament between two different pieces of a pattern (cuts and the
     outlines of holes and slots), ignoring the free edges. Pieces that touch or
     overlap (slots where cuts meet) count as one piece. inf for a single piece."""
@@ -150,7 +161,7 @@ def min_ligament(pat, tol=1e-6):
     D = np.minimum(D, D.T)
     parent = list(range(n))
 
-    def find(x):
+    def find(x: int) -> int:
         while parent[x] != x:
             parent[x] = parent[parent[x]]
             x = parent[x]
@@ -162,7 +173,7 @@ def min_ligament(pat, tol=1e-6):
     return float(D[other].min()) if other.any() else float("inf")
 
 
-def design_of(spec, L, W):
+def design_of(spec: dict[str, Any], L: float, W: float) -> tuple[Any, str, str | None, float | None]:
     """(Design, geometry_key, note). Tries to give every pattern a canonical string and
     checks that the string cuts the same geometry as the original generator."""
     p = spec["pattern"]
@@ -174,10 +185,11 @@ def design_of(spec, L, W):
     elif gen in ("alternating", "rotating_squares"):
         try:
             code = grammar.encode(grammar.from_legacy(gen, p["params"], W))
-        except Exception:
+        except (KeyError, TypeError, ValueError):          # parameters outside the grammar
             code = None
     note = None
     kerf = None
+    canon: str | None = None
     if code:
         canon = K.canonical(code)
         if K.geometry_key(canon, L, W) != gkey:
@@ -200,15 +212,23 @@ def design_of(spec, L, W):
     return d, gkey, note, kerf
 
 
-def flat_run(db, d):
-    src = d.relative_to(ROOT).as_posix()
+def _read_json(f: Path) -> Any:
+    """A JSON file's content, or None if it is missing, unreadable or not JSON."""
     try:
-        spec = json.loads((d / "spec.json").read_text())
-    except Exception:
+        return json.loads(f.read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def flat_run(db: DB, d: Path) -> None:
+    """The design, specimen and result records of one stored flat-sheet run."""
+    src = d.relative_to(ROOT).as_posix()
+    spec = _read_json(d / "spec.json")
+    if not isinstance(spec, dict):
         db.problem("unreadable spec.json", src)
         return
     summ_f = d / "summary.json"
-    summ = json.loads(summ_f.read_text()) if summ_f.exists() else None
+    summ = _read_json(summ_f)
     if summ is None:
         db.problem("no summary.json (unfinished or queued run)", src)
         return
@@ -221,7 +241,7 @@ def flat_run(db, d):
     mid = db.material(E, nu, mat.get("model", "svk"))
     try:
         des, gkey, note, kerf = design_of(spec, L, W)
-    except Exception as e:
+    except (KeyError, TypeError, ValueError) as e:      # an old or hand-edited spec
         db.problem(f"pattern could not be built: {type(e).__name__}", src)
         return
     if note:
@@ -256,8 +276,8 @@ def flat_run(db, d):
                     membrane_law=mat.get("model", "svk"), analysis=summ.get("analysis"),
                     mesh=spec.get("mesh"), seconds=summ.get("seconds"))
     pv = d / "provenance.json"
-    if pv.exists():
-        p = json.loads(pv.read_text())
+    p = _read_json(pv) if pv.exists() else None
+    if isinstance(p, dict):
         method.code_version, method.image = p.get("code_version"), p.get("image")
         method.source_hash, method.image_id = p.get("source_hash"), p.get("image_id")
     else:
@@ -296,7 +316,7 @@ def flat_run(db, d):
 
 
 # ------------------------------------------------------------------- tube runs
-def tri_design(db):
+def tri_design(db: DB) -> str:
     g = Generator(name="triangular V-cuts (scripts/tube_triangular.py)",
                   params={"l": 12.0, "delta_over_l": 0.75 / 12.0, "lattice": "triangular",
                           "cut": "V, arms along the two 30-degree lattice directions"})
@@ -310,12 +330,15 @@ def tri_design(db):
     return db.add("design", d)
 
 
-def tube_runs(db):
+def tube_runs(db: DB) -> None:
     did = tri_design(db)
     mid = db.material(4330.0, 0.4)
     for f in sorted(TUBE.glob("tri_n*.json")):
         src = f.relative_to(ROOT).as_posix()
-        dd = json.loads(f.read_text())
+        dd = _read_json(f)
+        if not isinstance(dd, dict) or "args" not in dd:
+            db.problem("unreadable tube run", src)
+            continue
         a = dd["args"]
         if a.get("uncut"):
             g = Generator(name="uncut", params={})
@@ -391,9 +414,9 @@ def tube_runs(db):
         for curve, kind, meth in (("experiment", "experiment", Method(engine="tensile test")),
                                   ("unit_cell_FEM", "digitised",
                                    Method(engine="Abaqus", model="rolled unit cell, periodic BCs"))):
-            e, s = zip(*ref["eps_sigma_kPa"][curve])
-            m = [(x, y) for x, y in zip(e, s) if x <= 0.01 + 1e-9]
-            props = {"sigma_max": Quantity(value=max(s), unit="kPa")}
+            eps_c, sig = zip(*ref["eps_sigma_kPa"][curve])
+            m = [(x, y) for x, y in zip(eps_c, sig) if x <= 0.01 + 1e-9]
+            props = {"sigma_max": Quantity(value=max(sig), unit="kPa")}
             if m:
                 slope = sum(x * y for x, y in m) / sum(x * x for x, _ in m) / 1e3
                 props["E_eff"] = Quantity(value=slope, unit="MPa")
@@ -401,7 +424,7 @@ def tube_runs(db):
             db.add("result", Result(
                 result_id=hid("kr", {"src": src, "curve": curve}), specimen_id=sp.specimen_id,
                 kind=kind, loading=Loading(boundary="periodic" if curve != "experiment" else "clamped",
-                                          max_strain=max(e)),
+                                          max_strain=max(eps_c)),
                 method=meth, data={"curve": data_ref(src, ROOT, key=curve,
                                                      description="digitised strain-stress curve")},
                 properties=props,
@@ -410,9 +433,15 @@ def tube_runs(db):
 
 
 # -------------------------------------------------------------------- output
-def write(db, out):
+def write(db: DB, out: str | os.PathLike[str]) -> dict[str, Any]:
+    """Write the records, the SQLite index and report.json into `out`, replacing an earlier
+    build there. A folder that is not an earlier build (no report.json and index.sqlite) is
+    never deleted."""
     out = Path(out)
     if out.exists():
+        if not ((out / "report.json").is_file() and (out / "index.sqlite").is_file()):
+            raise SystemExit(f"{out} exists and is not a database build (no report.json and "
+                             "index.sqlite): choose another --out")
         shutil.rmtree(out)
     for kind, recs in db.recs.items():
         (out / f"{kind}s").mkdir(parents=True)
@@ -459,10 +488,10 @@ def write(db, out):
     return report
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default="results/kdb")
-    ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--out", default="results/kdb", help="replaced if it holds an earlier build")
+    ap.add_argument("--limit", type=count, default=None, help="read only the first this many runs")
     a = ap.parse_args()
     db = DB()
     dirs = sorted(d for d in RUNS.glob("*") if d.is_dir())[: a.limit]

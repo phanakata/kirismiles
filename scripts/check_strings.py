@@ -16,9 +16,12 @@ The string is expanded with kirismiles.pattern and compared with the reference:
 With --buckle, the buckling threshold Delta_c of each design is computed from both inputs with
 the same mesh settings, and the relative difference is printed.
 """
+from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
+from typing import Any
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -42,8 +45,10 @@ STAR = {s: c for s, c in [
 ]}
 
 
-def rs(t):
-    """Rotating squares of side 8 mm with slits 16 - t long (hinges about t/2 wide)."""
+def rs(t: float) -> str:
+    """Rotating squares of side 8 mm with slits 16 - t long (hinges about t/2 wide), 0 < t < 16."""
+    if not 0 < t < 16:
+        raise ValueError(f"the hinge t must be between 0 and 16 mm, not {t}")
     return f"P8x16S1/2O0[H{16 - t:g}@0,0;V{16 - t:g}@0,1/2]N9E4"
 
 
@@ -71,18 +76,20 @@ DESIGNS = [
 ]
 
 
-def distance(a, b):
+def distance(a: dict[str, Any], b: dict[str, Any]) -> float:
     """Largest distance between two geometries, in mm (symmetric Hausdorff distance between
     the cut lines and outlines; kirigami.importer.deviation, exact to the segment)."""
     from kirigami.importer import deviation
     return deviation(a, b)
 
 
-def counts(pat):
-    return tuple(len(pat.get(k, ())) for k in ("cuts", "holes", "solids"))
+def counts(pat: dict[str, Any]) -> tuple[int, int, int]:
+    return len(pat.get("cuts", ())), len(pat.get("holes", ())), len(pat.get("solids", ()))
 
 
-def check(name, code, L, W, ref):
+def check(name: str, code: str, L: float, W: float, ref: dict[str, Any] | None) -> dict[str, Any]:
+    """Round trip of one design: the string's geometry against the reference (or, for a
+    string-only design, against its own canonical form)."""
     got = ks.pattern(code, L, W)
     if ref is None:                                     # string-only design: canonical round trip
         ref, code = got, ks.canonical(code)
@@ -94,7 +101,7 @@ def check(name, code, L, W, ref):
                 distance=d, key=same_key, ok=ok, ref=ref, got=got)
 
 
-def buckle_both(r):
+def buckle_both(r: dict[str, Any]) -> list[float]:
     """Delta_c from the reference geometry and from the string, same mesh settings."""
     from kirigami import api
     from kirigami import spec as S
@@ -108,7 +115,7 @@ def buckle_both(r):
     return out
 
 
-def main():
+def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--buckle", action="store_true")
     a = ap.parse_args()

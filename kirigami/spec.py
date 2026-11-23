@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Callable, cast
@@ -63,6 +64,10 @@ DEFAULTS: dict[str, dict[str, Any]] = {
 # Membrane laws of the shell model (spec["material"]["model"], default "svk"); see
 # kirigami/shell.py _membrane. "neo_hookean" is for hinges squeezed far in compression.
 MATERIAL_MODELS = ("svk", "neo_hookean")
+
+# spec["name"] names the run folder results/runs/<name>: plain letters, digits, _ and -,
+# so a name can never point outside that folder ("../x", "C:/x", "a/b").
+RUN_NAME = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 # How the sheet is held and loaded (spec["boundary"]["type"]). Delta is the
 # imposed stretch along x; Delta / L is the nominal strain.
@@ -116,6 +121,22 @@ def _num(v: Any) -> float | None:
     return v if np.isfinite(v) else None
 
 
+def check_name(name: object) -> str:
+    """The run name if it is a plain folder name (RUN_NAME); ValueError otherwise."""
+    if not (isinstance(name, str) and RUN_NAME.fullmatch(name)):
+        raise ValueError(f"name must be 1-64 letters, digits, _ or - (it names the folder "
+                         f"results/runs/<name>), not {name!r}")
+    return name
+
+
+def run_folder(root: str | os.PathLike[str], spec: Spec) -> Path:
+    """root/<spec name>, created if needed; ValueError for a name that is not a plain folder
+    name, so nothing is ever written outside root."""
+    d = Path(root) / check_name(spec.get("name", "design"))
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def validate(spec: Spec) -> list[str]:
     """Cheap checks before meshing. Returns a list of human-readable problems
     (empty if the spec looks fine); it never raises for a malformed spec. Sections
@@ -123,6 +144,10 @@ def validate(spec: Spec) -> list[str]:
     if not isinstance(spec, Mapping):
         return [f"a spec must be a JSON object, not {type(spec).__name__}"]
     errs: list[str] = []
+    try:
+        check_name(spec.get("name", "design"))
+    except ValueError as e:
+        errs.append(str(e))
     sec: dict[str, Mapping[str, Any]] = {}
     for key in ("sheet", "pattern", *DEFAULTS):
         v = spec.get(key, DEFAULTS.get(key))

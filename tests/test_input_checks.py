@@ -155,3 +155,51 @@ def test_provenance_needs_an_existing_run_folder(tmp_path):
     with pytest.raises(FileNotFoundError):
         provenance.write(tmp_path / "missing")
     assert len(provenance.source_hash()) == 40
+
+
+# ---------------------------------------------------------------- command-line tools
+
+def test_argtypes_accept_and_refuse():
+    import argparse
+
+    from kirigami.argtypes import count, count0, nonneg, positive
+    assert positive("0.5") == 0.5 and nonneg("0") == 0.0 and count("3") == 3 and count0("0") == 0
+    for fn, bad in ((positive, "0"), (positive, "-1"), (positive, "nan"), (positive, "x"),
+                    (nonneg, "-0.1"), (count, "0"), (count, "1.5"), (count0, "-1")):
+        with pytest.raises(argparse.ArgumentTypeError):
+            fn(bad)
+
+
+def test_cli_prints_json_and_fails_cleanly_on_a_missing_spec(capsys):
+    import json
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import kirigami_cli
+    assert kirigami_cli.main(["validate", "specs/no_such_spec.json"]) == 1
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["ok"] is False and "FileNotFoundError" in out["errors"][0]
+    assert kirigami_cli.main(["validate", "specs/alternating.json"]) == 0
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+
+@pytest.mark.parametrize("name", ["../../paper/x", "a/b", "C:/x", "..", "", "x" * 65, "a b", 7, None])
+def test_run_names_cannot_leave_the_runs_folder(name, tmp_path):
+    assert any("name must be" in e for e in S.validate(S.load({**GOOD, "name": name})))
+    with pytest.raises(ValueError, match="name must be"):
+        S.run_folder(tmp_path / "runs", {"name": name})
+    assert not (tmp_path / "runs").exists()          # nothing created
+
+
+def test_plain_run_names_pass(tmp_path):
+    for name in ("t", "cloud_0025", "wf-nu38_1123_101500_2", "x" * 64):
+        assert S.validate(S.load({**GOOD, "name": name})) == []
+        assert S.run_folder(tmp_path, {"name": name}) == tmp_path / name
+    assert S.run_folder(tmp_path, {}) == tmp_path / "design"      # the default name
+
+
+def test_queue_names_are_valid_run_names():
+    from kirigami import jobs
+    for raw in ("../../etc", "my design!", "", None, "x" * 100):
+        S.check_name(jobs.safe_name(raw))
+        S.check_name(jobs.unique_name(raw))

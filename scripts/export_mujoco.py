@@ -8,6 +8,8 @@ MuJoCo's flex does and does not reproduce of a Kirchhoff plate.
     python scripts/export_mujoco.py --mesh results/runs/<run>/mesh.vtk --L 120 --nu 0.38 --out design.xml
     python -c "import mujoco; m = mujoco.MjModel.from_xml_path('design.xml'); print(m.nflexvert)"
 """
+from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
@@ -15,18 +17,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from kirigami import mjcf as K  # noqa: E402
+from kirigami.argtypes import positive  # noqa: E402
 
 
-def main():
-    p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+def main() -> None:
+    p = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     p.add_argument("--mesh", required=True, help="mesh.vtk of the design (mm)")
-    p.add_argument("--L", type=float, required=True, help="sheet length along the pull (mm)")
-    p.add_argument("--E", type=float, default=3500.0, help="Young's modulus (MPa)")
+    p.add_argument("--L", type=positive, required=True, help="sheet length along the pull (mm)")
+    p.add_argument("--E", type=positive, default=3500.0, help="Young's modulus (MPa)")
     p.add_argument("--nu", type=float, default=0.38, help="Poisson ratio")
-    p.add_argument("--h", type=float, default=0.127, help="thickness (mm)")
-    p.add_argument("--dt", type=float, default=1e-6, help="MuJoCo time step (s)")
+    p.add_argument("--h", type=positive, default=0.127, help="thickness (mm)")
+    p.add_argument("--dt", type=positive, default=1e-6, help="MuJoCo time step (s)")
     p.add_argument("--out", required=True)
     a = p.parse_args()
+    if not Path(a.mesh).is_file():
+        p.error(f"no mesh file {a.mesh}")
     x, cells = K.read_vtk(a.mesh)
     xml, info = K.mjcf(x, cells, a.L, E=a.E, h=a.h, nu=a.nu, dt=a.dt)
     Path(a.out).write_text(xml)

@@ -15,35 +15,47 @@ of the spec that produced them.
 
 buckle / simulate / stl / mesh (and export of patterns with solids) run in the FEniCSx
 Docker container automatically; the rest needs only numpy + matplotlib.
+
+Exit status: 0 when the JSON line was printed (check its "ok"), 1 when the command could
+not run at all (an unreadable spec, Docker missing); a JSON line with ok=false is printed
+then too.
 """
+from __future__ import annotations
+
 import argparse
 import inspect
 import json
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from kirigami import spec as S  # noqa: E402
+from kirigami.argtypes import positive  # noqa: E402
 
 from kirigami.provenance import IMAGE  # noqa: E402  (one place for the solver image)
 CONTAINER_PYTHONPATH = "/work:/usr/local/dolfinx-real/lib/python3.12/dist-packages:/usr/local/lib"
 
 
-def emit(obj):
+Result = dict[str, Any]
+
+
+def emit(obj: Result) -> None:
     print(json.dumps(obj))
 
 
-def run_dir(spec):
-    d = ROOT / "results" / "runs" / spec["name"]
-    d.mkdir(parents=True, exist_ok=True)
-    return d
+def run_dir(spec: dict[str, Any]) -> Path:
+    """results/runs/<name>/, created if needed; ValueError for a name that is not a plain
+    folder name (spec.check_name)."""
+    return S.run_folder(ROOT / "results" / "runs", spec)
 
 
-def stage_spec(spec):
+def stage_spec(spec: dict[str, Any]) -> str:
     """Save the (default-filled) spec with the run: the record of what was
     simulated, and the path handed to the container. provenance.json beside it
     records the code version and the solver image (kirigami/provenance.py)."""
@@ -57,7 +69,7 @@ def stage_spec(spec):
     return p.relative_to(ROOT).as_posix()
 
 
-def in_container(args, name=None):
+def in_container(args: Sequence[str], name: str | None = None) -> Result:
     """Run python3 -m kirigami.api <args> in the FEniCSx container (or directly
     if we already are in one) and return its JSON result. `name` names the
     container, so that it can be stopped with `docker stop <name>`."""
@@ -70,19 +82,28 @@ def in_container(args, name=None):
                "-v", f"{ROOT}:/work", "-v", f"{ROOT / '.cache'}:/root/.cache/fenics",
                "-w", "/work", "-e", f"PYTHONPATH={CONTAINER_PYTHONPATH}",
                "-e", "OMP_NUM_THREADS=1", IMAGE, "python3", "-m", "kirigami.api", *args]
-    r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
-    lines = [l for l in r.stdout.strip().splitlines() if l.startswith("{")]
+    try:
+        r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+    except FileNotFoundError:
+        return dict(ok=False, error="Docker is not installed (the solver runs in the "
+                                    f"{IMAGE} container)")
+    lines = [ln for ln in r.stdout.strip().splitlines() if ln.startswith("{")]
     if r.returncode != 0 or not lines:
         return dict(ok=False, error=f"solver exited with code {r.returncode}",
                     log_tail=(r.stdout + r.stderr).strip().splitlines()[-15:])
-    return dict(ok=True, **json.loads(lines[-1]))
+    try:
+        out = json.loads(lines[-1])
+    except ValueError:
+        return dict(ok=False, error="the solver's last line is not valid JSON",
+                    log_tail=r.stdout.strip().splitlines()[-15:])
+    return dict(ok=True, **out)
 
 
-def cmd_generators(_):
+def cmd_generators(_: argparse.Namespace) -> None:
     emit({name: str(inspect.signature(fn)) for name, fn in S.GENERATORS.items()})
 
 
-def cmd_validate(a):
+def cmd_validate(a: argparse.Namespace) -> None:
     spec = S.load(a.spec)
     errs = S.validate(spec)
     pat = S.pattern(spec) if not errs else {}
@@ -90,7 +111,7 @@ def cmd_validate(a):
               counts={k: len(v) for k, v in pat.items()}))
 
 
-def cmd_preview(a):
+def cmd_preview(a: argparse.Namespace) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -119,7 +140,7 @@ def cmd_preview(a):
     emit(dict(name=spec["name"], ok=True, files=[out.relative_to(ROOT).as_posix()]))
 
 
-def cmd_export(a):
+def cmd_export(a: argparse.Namespace) -> None:
     from kirigami import export as X
     spec = S.load(a.spec)
     errs = S.validate(spec)
@@ -138,7 +159,7 @@ def cmd_export(a):
               files=[(d / f).relative_to(ROOT).as_posix() for f in ("cut.svg", "cut.dxf")]))
 
 
-def cmd_import(a):
+def cmd_import(a: argparse.Namespace) -> None:
     """A laser-cut file (SVG or DXF) as a KiriSMILES string, checked; with --spec, also
     written as a spec ready to validate, preview, mesh or simulate."""
     from kirigami import importer as I
@@ -159,11 +180,11 @@ def cmd_import(a):
     emit(out)
 
 
-def cmd_mesh(a):
+def cmd_mesh(a: argparse.Namespace) -> None:
     emit(_solver("mesh", a))
 
 
-def _solver(cmd, a, *extra):
+def _solver(cmd: str, a: argparse.Namespace, *extra: str) -> Result:
     spec = S.load(a.spec)
     errs = S.validate(spec)
     if errs:
@@ -171,15 +192,15 @@ def _solver(cmd, a, *extra):
     return in_container([cmd, stage_spec(spec), *extra])
 
 
-def cmd_stl(a):
+def cmd_stl(a: argparse.Namespace) -> None:
     emit(_solver("stl", a, str(a.thickness), str(a.kerf)))
 
 
-def cmd_buckle(a):
+def cmd_buckle(a: argparse.Namespace) -> None:
     emit(_solver("buckle", a))
 
 
-def cmd_simulate(a):
+def cmd_simulate(a: argparse.Namespace) -> None:
     res = _solver("simulate", a)
     if res.get("ok") and not a.no_gif:
         import make_gif
@@ -190,7 +211,8 @@ def cmd_simulate(a):
     emit(res)
 
 
-def main():
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run one command; returns the exit status (see the module docstring)."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("generators").set_defaults(fn=cmd_generators)
@@ -201,25 +223,30 @@ def main():
         p.set_defaults(fn=fn)
     p = sub.add_parser("import", help="convert a laser-cut file (.svg, .dxf) to a string")
     p.add_argument("file")
-    p.add_argument("--L", type=float, help="sheet length, mm (default: the outline in the file)")
-    p.add_argument("--W", type=float, help="sheet width, mm")
-    p.add_argument("--tol", type=float, default=0.01, help="curves to polylines within tol mm")
+    p.add_argument("--L", type=positive, help="sheet length, mm (with --W; default: the outline in the file)")
+    p.add_argument("--W", type=positive, help="sheet width, mm")
+    p.add_argument("--tol", type=positive, default=0.01, help="curves to polylines within tol mm")
     p.add_argument("--digits", type=int, default=3, help="decimals of the coordinates")
-    p.add_argument("--min-gap", type=float, default=0.5, help="smallest hinge checked, mm")
+    p.add_argument("--min-gap", type=positive, default=0.5, help="smallest hinge checked, mm")
     p.add_argument("--spec", help="also write a spec JSON here")
     p.set_defaults(fn=cmd_import)
     p = sub.add_parser("stl")
     p.add_argument("spec")
-    p.add_argument("--thickness", type=float, default=0.5, help="mm")
-    p.add_argument("--kerf", type=float, default=0.4, help="slot width replacing each slit, mm")
+    p.add_argument("--thickness", type=positive, default=0.5, help="mm")
+    p.add_argument("--kerf", type=positive, default=0.4, help="slot width replacing each slit, mm")
     p.set_defaults(fn=cmd_stl)
     p = sub.add_parser("simulate")
     p.add_argument("spec")
     p.add_argument("--no-gif", action="store_true")
     p.set_defaults(fn=cmd_simulate)
-    a = ap.parse_args()
-    a.fn(a)
+    a = ap.parse_args(argv)
+    try:
+        a.fn(a)
+    except (OSError, KeyError, TypeError, ValueError) as e:    # e.g. a missing or malformed spec
+        emit(dict(ok=False, command=a.cmd, errors=[f"{type(e).__name__}: {e}"]))
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -20,11 +20,14 @@ designs, not as an absolute failure prediction.
 
 Usage: python scripts/compare_designs.py [--eps-y 0.02]
 """
+from __future__ import annotations
+
 import argparse
 import glob
 import json
 import os
 import sys
+from typing import Any
 
 import matplotlib
 matplotlib.use("Agg")
@@ -47,30 +50,36 @@ plt.rcParams.update({"font.size": 10, "axes.edgecolor": MUTED, "axes.labelcolor"
                      "grid.color": "#e4e3df", "grid.linewidth": 0.6, "figure.dpi": 150})
 
 
-def analyse(path, eps_y):
-    d = np.load(path)
-    if "F" not in d or "U" not in d or len(d["F"]) != len(d["Delta"]):
-        return None
-    L, W, h = float(d["L"]), float(d["W"]), float(d["h"])
-    x, cells = d["x"], d["cells"]
+def analyse(path: str | os.PathLike[str], eps_y: float) -> dict[str, Any] | None:
+    """Stress-strain and stretchability of one run; None if it has no force or snapshot
+    history (or they do not match its load steps). eps_y: yield strain, > 0."""
+    if not eps_y > 0:
+        raise ValueError(f"the yield strain eps_y must be positive, not {eps_y}")
+    with np.load(path) as d:
+        if "F" not in d or "U" not in d or len(d["F"]) != len(d["Delta"]) or len(d["F"]) == 0:
+            return None
+        L, W, h = float(d["L"]), float(d["W"]), float(d["h"])
+        x, cells, Delta, F, Us, F_unit = d["x"], d["cells"], d["Delta"], d["F"], d["U"], float(d["F_unit"])
     X, Ginv, orient, pairs, dist = triangle_geometry(x, cells)
-    eps = d["Delta"] / L
+    eps = Delta / L
     eloc = np.array([local_strain(X, U.astype(float), cells, Ginv, orient, pairs, dist, h).max()
-                     for U in d["U"]])
-    sigma = d["F"] / (W * h)
+                     for U in Us])
+    sigma = F / (W * h)
     star, note = crossing(eps, eloc, eps_y)
     return dict(eps=eps, sigma=sigma, eloc=eloc, L=L, W=W, h=h,
-                E_eff=float(d["F_unit"]) * L / (W * h),          # small-strain modulus, MPa
+                E_eff=F_unit * L / (W * h),                     # small-strain modulus, MPa
                 stretch=star, note=note, eps_max=float(eps[-1]),
                 sigma_star=float(np.interp(star, eps, sigma)),
                 sigma_end=float(sigma[-1]))
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--eps-y", type=float, default=0.02, help="yield strain of the material")
+    ap.add_argument("--eps-y", type=float, default=0.02, help="yield strain of the material (> 0)")
     a = ap.parse_args()
-    res = {}
+    if not a.eps_y > 0:
+        ap.error(f"--eps-y must be positive, not {a.eps_y}")
+    res: dict[str, dict[str, Any]] = {}
     files = [(os.path.basename(f)[:-4], f) for f in sorted(glob.glob(f"{R}/*.npz"))]
     files += [(os.path.basename(os.path.dirname(f)), f)                 # CLI / api runs
               for f in sorted(glob.glob(f"{RUNS}/*/history.npz"))]
@@ -84,6 +93,7 @@ def main():
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 4.2))
     grey_labelled = False
     for name, r in sorted(res.items(), key=lambda kv: kv[0] in COLORS):   # grey first, below
+        lab: str | None
         if name in COLORS:
             c, lw, lab = COLORS[name], 1.8, name
         else:

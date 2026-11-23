@@ -73,8 +73,7 @@ def buckle(spec: Spec, nev: int = 4) -> Summary:
         raise ValueError(f"nev (number of buckling modes) must be at least 1, not {nev}")
     from dolfinx import fem
     t0 = time.time()
-    out = RUNS / spec["name"]
-    out.mkdir(parents=True, exist_ok=True)
+    out = S.run_folder(RUNS, spec)
     sh = _sheet(spec)
     _, N1, F1 = sh.solve_inplane(1.0)
     lams, modes = sh.linear_buckling(N1, nev=nev)
@@ -104,8 +103,7 @@ def stiffness(spec: Spec) -> Summary:
     """Linear in-plane stiffness F/Delta of the flat cut sheet (small strain, no buckling).
     The cheapest response the engine computes: one plane-stress solve."""
     t0 = time.time()
-    out = RUNS / spec["name"]
-    out.mkdir(parents=True, exist_ok=True)
+    out = S.run_folder(RUNS, spec)
     sh = _sheet(spec)
     _, _, F1 = sh.solve_inplane(1.0)
     res = dict(name=spec["name"], analysis="stiffness",
@@ -160,8 +158,7 @@ def simulate(spec: Spec) -> Summary:
     from dolfinx import fem, geometry
     from kirigami import strain as ST
     t0 = time.time()
-    out = RUNS / spec["name"]
-    out.mkdir(parents=True, exist_ok=True)
+    out = S.run_folder(RUNS, spec)
     sh = _shell(spec)
     msh, mat, L = sh.msh, sh.mat, spec["sheet"]["L"]
     bnd = sh.boundary
@@ -248,8 +245,7 @@ def simulate(spec: Spec) -> Summary:
 def export_exact(spec: Spec) -> Summary:
     """Cut paths via gmsh booleans (needed for patterns with solids)."""
     from kirigami import export as X
-    out = RUNS / spec["name"]
-    out.mkdir(parents=True, exist_ok=True)
+    out = S.run_folder(RUNS, spec)
     L, W = spec["sheet"]["L"], spec["sheet"]["W"]
     paths = X.cut_paths(L, W, S.pattern(spec), exact=True)
     X.write_svg(paths, L, W, out / "cut.svg")
@@ -269,8 +265,7 @@ def export_mesh(spec: Spec) -> Summary:
     from dolfinx import io
     from mpi4py import MPI
     from kirigami import geometry as geo
-    out = RUNS / spec["name"]
-    out.mkdir(parents=True, exist_ok=True)
+    out = S.run_folder(RUNS, spec)
     L, W = spec["sheet"]["L"], spec["sheet"]["W"]
     m = spec["mesh"]
     files = [out / f"mesh.{ext}" for ext in MESH_FORMATS]
@@ -295,8 +290,7 @@ def export_stl(spec: Spec, thickness: float, kerf: float) -> Summary:
     if not kerf >= 0:
         raise ValueError(f"kerf must not be negative, not {kerf}")
     from kirigami import export as X
-    out = RUNS / spec["name"]
-    out.mkdir(parents=True, exist_ok=True)
+    out = S.run_folder(RUNS, spec)
     f = out / f"sheet_t{thickness:g}.stl"
     X.write_stl(spec["sheet"]["L"], spec["sheet"]["W"], S.pattern(spec), thickness, str(f), kerf)
     return dict(name=spec["name"], analysis="stl", thickness_mm=thickness, kerf_mm=kerf,

@@ -178,7 +178,9 @@ class Method(BaseModel):
     analysis: Optional[str] = Field(None, description="simulate, buckle, ...")
     mesh: Optional[dict] = None
     code_version: Optional[str] = None
+    source_hash: Optional[str] = Field(None, description="kirigami/provenance.py source_hash")
     image: Optional[str] = None
+    image_id: Optional[str] = Field(None, description="digest of the solver image")
     seconds: Optional[float] = Field(None, ge=0)
 
 

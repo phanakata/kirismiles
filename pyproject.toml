@@ -40,8 +40,20 @@ files = [
     "kirigami/provenance.py",
     "webapp/server.py",
     "mcp_server/server.py",
+    "kirigami/argtypes.py",
+    "scripts/kirigami_cli.py",
+    "scripts/make_gif.py",
+    "scripts/compare_designs.py",
+    "scripts/export_mujoco.py",
+    "scripts/mujoco_check.py",
+    "scripts/mujoco_gif.py",
+    "scripts/check_strings.py",
+    "scripts/corpus.py",
+    "scripts/build_kdb.py",
+    "scripts/run_config.py",
 ]
 python_version = "3.12"
+plugins = ["pydantic.mypy"]          # Field defaults and validators of kirigami/kdb.py
 explicit_package_bases = true         # webapp/server.py and mcp_server/server.py are two modules
 mypy_path = "."
 ignore_missing_imports = true        # dolfinx, gmsh, mujoco have no stubs here
