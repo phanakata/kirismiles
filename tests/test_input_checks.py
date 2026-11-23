@@ -130,3 +130,28 @@ def test_database_records_check_counts_and_hashes():
         kdb.DataRef(path="a.npz", sha256="not-a-hash")
     with pytest.raises(ValueError, match="design ID"):
         kdb.Design.make_id()
+
+
+# ---------------------------------------------------------------- cut-file import and provenance
+
+def test_importer_checks_its_settings(tmp_path):
+    from kirigami import importer as I
+    svg = tmp_path / "a.svg"
+    svg.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="120mm" height="60mm" viewBox="0 0 120 60">'
+                   '<rect x="0" y="0" width="120" height="60"/><line x1="60" y1="10" x2="60" y2="50"/></svg>')
+    assert I.import_file(svg)["code"]                                     # a valid file still imports
+    for kw, expect in ((dict(tol=0), "tol"), (dict(digits=9), "digits"), (dict(L=120), "both L and W"),
+                       (dict(L=-1, W=60), "L = -1")):
+        with pytest.raises(ValueError, match=expect):
+            I.import_file(svg, **kw)
+    with pytest.raises(ValueError, match="step"):
+        I.deviation({"cuts": []}, {"cuts": []}, step=0)
+    with pytest.raises(ValueError, match="start with a command"):
+        I._path("10 10 L 20 20", 0.01)
+
+
+def test_provenance_needs_an_existing_run_folder(tmp_path):
+    from kirigami import provenance
+    with pytest.raises(FileNotFoundError):
+        provenance.write(tmp_path / "missing")
+    assert len(provenance.source_hash()) == 40

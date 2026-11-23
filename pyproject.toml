@@ -36,6 +36,8 @@ files = [
     "kirigami/shell.py",
     "kirigami/tube.py",
     "kirigami/jobs.py",
+    "kirigami/importer.py",
+    "kirigami/provenance.py",
 ]
 python_version = "3.12"
 ignore_missing_imports = true        # dolfinx, gmsh, mujoco have no stubs here

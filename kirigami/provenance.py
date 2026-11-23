@@ -12,20 +12,25 @@
 
 Only the standard library is used, so this works on the host and in the container.
 """
+from __future__ import annotations
+
 import datetime
 import hashlib
 import json
+import os
 import platform
 import subprocess
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 IMAGE = "dolfinx/dolfinx:v0.9.0"
 CODE_DIRS = ("kirigami", "scripts")
 
 
-def _run(cmd):
+def _run(cmd: list[str]) -> str | None:
+    """stdout of a command run in the repository, or None if it fails or is not installed."""
     try:
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=20)
         # rstrip only: porcelain status lines start with a space (' M path')
@@ -34,7 +39,8 @@ def _run(cmd):
         return None
 
 
-def source_hash():
+def source_hash() -> str:
+    """sha1 over every .py file under CODE_DIRS (paths and contents, line endings normalised)."""
     h = hashlib.sha1()
     for d in CODE_DIRS:
         for f in sorted((ROOT / d).rglob("*.py")):
@@ -47,13 +53,15 @@ def source_hash():
 
 
 @lru_cache(maxsize=None)
-def image_id(image=IMAGE):
+def image_id(image: str = IMAGE) -> str | None:
+    """Digest of a local Docker image, None when Docker or the image is not there."""
     return _run(["docker", "image", "inspect", "--format", "{{.Id}}", image])
 
 
-def collect(image=IMAGE):
+def collect(image: str = IMAGE) -> dict[str, Any]:
+    """The provenance record described in the module docstring."""
     commit = _run(["git", "rev-parse", "HEAD"])
-    changed = None
+    changed: list[str] | None = None
     if commit:
         st = _run(["git", "status", "--porcelain", "--untracked-files=all", "--", *CODE_DIRS])
         changed = [l[3:] for l in (st or "").splitlines()
@@ -72,8 +80,10 @@ def collect(image=IMAGE):
     }
 
 
-def write(run_dir, image=IMAGE):
-    """Write provenance.json into a run folder and return its contents."""
+def write(run_dir: str | os.PathLike[str], image: str = IMAGE) -> dict[str, Any]:
+    """Write provenance.json into a run folder (which must exist) and return its contents."""
+    if not Path(run_dir).is_dir():
+        raise FileNotFoundError(f"no run folder {os.fspath(run_dir)!r}")
     p = collect(image)
     Path(run_dir, "provenance.json").write_text(json.dumps(p, indent=1))
     return p
