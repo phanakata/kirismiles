@@ -1,9 +1,13 @@
 name: tests
 
+# Paused while the repository is private (runs there use the account's Actions minutes):
+# it runs only when started by hand (Actions tab > tests > Run workflow). To run it on
+# every push again, replace the trigger with:
+#   push:
+#     branches: [main]
+#   pull_request:
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
