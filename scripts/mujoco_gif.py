@@ -36,8 +36,11 @@ def look(pos: Sequence[float] | np.ndarray, target: Sequence[float] | np.ndarray
     return f'pos="{p0[0]:.4f} {p0[1]:.4f} {p0[2]:.4f}" xyaxes="{" ".join(f"{v:.4f}" for v in (*xa, *ya))}"'
 
 
-def scene_xml(x: np.ndarray, cells: np.ndarray, L: float, W: float, Dmax: float) -> str:
-    """Gripper + sheet, in metres. Every sheet node is a body with three slides (posed, not simulated)."""
+def scene_xml(x: np.ndarray, cells: np.ndarray, L: float, W: float, Dmax: float, extra: str = "",
+              assets: str = "", floor: float = 1.0) -> str:
+    """Gripper + sheet, in metres. Every sheet node is a body with three slides (posed, not simulated).
+    `extra` and `assets`: more MJCF for the worldbody and the assets (scripts/mujoco_figure.py adds a robot arm, a
+    camera and a sky); `floor`: half the side of the floor (m)."""
     s = 1e-3
     Lm, Wm, Dm = L * s, W * s, Dmax * s
     jaw, t, rail_z = 0.012, 0.004, 0.09                     # jaw depth along x, plate thickness, rail height (m)
@@ -63,20 +66,22 @@ def scene_xml(x: np.ndarray, cells: np.ndarray, L: float, W: float, Dmax: float)
     <headlight ambient="0.35 0.35 0.35" diffuse="0.6 0.6 0.6"/></visual>
   <asset>
     <texture name="grid" type="2d" builtin="checker" rgb1="0.93 0.94 0.96" rgb2="0.86 0.88 0.91" width="512" height="512"/>
-    <material name="grid" texture="grid" texrepeat="12 12"/>
+    <material name="grid" texture="grid" texrepeat="{12 * floor:g} {12 * floor:g}"/>
     <material name="metal" rgba="0.55 0.58 0.62 1" specular="0.6" shininess="0.6"/>
     <material name="dark" rgba="0.18 0.2 0.24 1"/>
     <material name="sheet" rgba="0.93 0.55 0.2 1"/>
+    {assets}
   </asset>
   <worldbody>
     <light pos="{centre[0]} {centre[1] - 0.2} 0.5" dir="0 0.3 -1" directional="true" castshadow="true"/>
     <light pos="{centre[0]} {centre[1] - 0.1} -0.3" dir="0 0.3 1" diffuse="0.35 0.35 0.35"/>
-    <geom type="plane" size="1 1 0.01" pos="{centre[0]} {centre[1]} -0.06" material="grid"/>
+    <geom type="plane" size="{floor:g} {floor:g} 0.01" pos="{centre[0]} {centre[1]} -0.06" material="grid"/>
     <geom type="box" size="{Lm / 2 + Dm / 2 + 0.05} 0.006 0.006" pos="{centre[0]} {Wm + 0.017} {rail_z + 0.014}" material="dark"/>
     <camera name="wide" {look(centre + [0.07, -0.19, 0.12], centre + [0, 0.005, 0.01])} fovy="45"/>
     {finger("jaw0", 0.0, -1, "")}
     {finger("jaw1", Lm, 1, '<joint name="pull" type="slide" axis="1 0 0"/>')}
     {bodies}
+    {extra}
   </worldbody>
   <deformable>
     <flex name="sheet" dim="2" radius="0.0002" material="sheet" body="{' '.join(f'n{i}' for i in range(len(x)))}"

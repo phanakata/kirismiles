@@ -47,6 +47,7 @@ files = [
     "scripts/export_mujoco.py",
     "scripts/mujoco_check.py",
     "scripts/mujoco_gif.py",
+    "scripts/mujoco_figure.py",
     "scripts/check_strings.py",
     "scripts/corpus.py",
     "scripts/build_kdb.py",
