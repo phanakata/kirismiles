@@ -10,11 +10,19 @@ The peak sits at crack tips, where the true elastic field is singular, so the
 value is the strain averaged over one tip element: use it to rank designs, not
 as an absolute failure prediction.
 """
+from __future__ import annotations
+
 import numpy as np
 
 
-def triangle_geometry(x, cells):
-    """Reference inverse edge matrices and the interior-edge adjacency."""
+def triangle_geometry(x: np.ndarray, cells: np.ndarray
+                      ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Reference inverse edge matrices and the interior-edge adjacency.
+    x: (n_nodes, 2) flat positions; cells: (n_triangles, 3) node indices.
+    Returns (X, Ginv, orient, pairs, dist), the arguments of local_strain."""
+    x, cells = np.asarray(x, float), np.asarray(cells)
+    if x.ndim != 2 or x.shape[1] != 2 or cells.ndim != 2 or cells.shape[1] != 3:
+        raise ValueError(f"need x of shape (n, 2) and cells of shape (m, 3), got {x.shape} and {cells.shape}")
     X = np.column_stack([x, np.zeros(len(x))])
     G = np.stack([x[cells[:, 1]] - x[cells[:, 0]], x[cells[:, 2]] - x[cells[:, 0]]], axis=2)
     Ginv = np.linalg.inv(G)                                      # (n, 2, 2)
@@ -32,8 +40,14 @@ def triangle_geometry(x, cells):
     return X, Ginv, orient, pairs, dist
 
 
-def local_strain(X, U, cells, Ginv, orient, pairs, dist, h):
-    """Per-triangle membrane + bending surface strain for one snapshot."""
+def local_strain(X: np.ndarray, U: np.ndarray, cells: np.ndarray, Ginv: np.ndarray, orient: np.ndarray,
+                 pairs: np.ndarray, dist: np.ndarray, h: float) -> np.ndarray:
+    """Per-triangle membrane + bending surface strain for one snapshot. U: (n_nodes, 3)
+    displacements; h: thickness (mm, > 0); the rest from triangle_geometry."""
+    if U.shape != X.shape:
+        raise ValueError(f"U has shape {U.shape}; the mesh needs {X.shape}")
+    if not h > 0:
+        raise ValueError(f"the thickness h must be positive, not {h}")
     P = X + U
     Fd = np.stack([P[cells[:, 1]] - P[cells[:, 0]], P[cells[:, 2]] - P[cells[:, 0]]], axis=2)
     F = Fd @ Ginv                                                # (n, 3, 2)
@@ -50,9 +64,14 @@ def local_strain(X, U, cells, Ginv, orient, pairs, dist, h):
     return np.abs(e_mem) + e_bend
 
 
-def crossing(eps, eloc, eps_y):
+def crossing(eps: np.ndarray, eloc: np.ndarray, eps_y: float) -> tuple[float, str]:
     """Applied strain at which eloc first reaches eps_y (log interpolation).
-    Returns (value, note); note is "" for a real crossing."""
+    eps and eloc: the applied and local strain at each step, positive. Returns (value, note);
+    note is "" for a real crossing."""
+    if not eps_y > 0:
+        raise ValueError(f"the yield strain eps_y must be positive, not {eps_y}")
+    if len(eps) != len(eloc) or not len(eps):
+        raise ValueError(f"eps and eloc need the same, non-zero length ({len(eps)} and {len(eloc)})")
     k = np.where(eloc >= eps_y)[0]
     if len(k) == 0:
         return float(eps[-1]), "not reached within the simulated range"

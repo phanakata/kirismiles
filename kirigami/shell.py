@@ -15,21 +15,28 @@ normal (the kink between two elements, zero for a smooth surface) is
 penalised, with a consistency term pairing it with avg(M_nn). On the clamped
 edges, the rotation of d phi/dn away from n_ref is suppressed the same way.
 """
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
+
 import numpy as np
 import ufl
 import basix.ufl
+from ufl.core.expr import Expr
 from dolfinx import fem
 from dolfinx import mesh as dmesh
 from dolfinx.fem.petsc import NonlinearProblem
 from dolfinx.nls.petsc import NewtonSolver
 from mpi4py import MPI
 
-from kirigami.fvk import Sheet, _membrane_stress, _moment
+from kirigami.fvk import Material, Observer, Sheet, StepResult, _membrane_stress, _moment
+from kirigami.spec import BOUNDARY_TYPES, MATERIAL_MODELS
 
-MEMBRANE_MODELS = ("svk", "neo_hookean")
+MEMBRANE_MODELS = MATERIAL_MODELS
 
 
-def _membrane(F, mat):
+def _membrane(F: Expr, mat: Material) -> tuple[Expr, Expr, Expr]:
     """Membrane energy density (per unit reference area), stress resultant and
     Green-Lagrange strain for the deformation gradient F (3 x 2).
 
@@ -58,20 +65,27 @@ def _membrane(F, mat):
 
 class ShellSheet(Sheet):
 
-    def __init__(self, msh, L, mat, alpha=10.0, boundary=None):
+    def __init__(self, msh: dmesh.Mesh, L: float, mat: Material, alpha: float = 10.0,
+                 boundary: Mapping[str, Any] | None = None) -> None:
         """boundary: {"type": "clamped" | "roller" | "biaxial", "in_plane": bool};
         see kirigami/spec.py BOUNDARY_TYPES."""
         super().__init__(msh, L, mat, alpha)
         cell = msh.basix_cell()
         self.V3 = fem.functionspace(msh, basix.ufl.element("Lagrange", cell, 2, shape=(3,)))
-        self.boundary = {"type": "clamped", "in_plane": False, **(boundary or {})}
+        self.boundary: dict[str, Any] = {"type": "clamped", "in_plane": False, **(boundary or {})}
+        if self.boundary["type"] not in BOUNDARY_TYPES:
+            raise ValueError(f"boundary type must be one of {sorted(BOUNDARY_TYPES)}, "
+                             f"not {self.boundary['type']!r}")
+        if not isinstance(self.boundary["in_plane"], bool):
+            raise ValueError("boundary in_plane must be True or False")
+        self.force = float("nan")                # reaction of the last converged step (solve)
         xg = msh.geometry.x
         self.Wsheet = float(xg[:, 1].max())
         self.bottom_facets = dmesh.locate_entities_boundary(msh, 1, lambda x: np.isclose(x[1], 0.0))
         self.top_facets = dmesh.locate_entities_boundary(msh, 1, lambda x: np.isclose(x[1], self.Wsheet))
         # vertex on x = 0 closest to mid-height: pinned in y for the roller condition
         on_left = np.flatnonzero(np.isclose(xg[:, 0], 0.0))
-        self.pin_vertex = None
+        self.pin_vertex: np.ndarray | None = None
         if len(on_left):
             k = on_left[np.argmin(np.abs(xg[on_left, 1] - self.Wsheet / 2))]
             msh.topology.create_connectivity(0, msh.topology.dim)
@@ -79,18 +93,20 @@ class ShellSheet(Sheet):
                                           np.isclose(x[1], p[1]))
             self.pin_vertex = verts[:1]
 
-    def _bcs(self, V, u_left, u_right):
+    def _bcs(self, V: fem.FunctionSpace, u_left: fem.Function, u_right: fem.Function) -> list[fem.DirichletBC]:
         """Dirichlet conditions for the chosen boundary type. u_left / u_right are
         Functions in V whose values (set by solve each step) are imposed on the
         loaded edges; for 'roller' and 'biaxial' only their normal components are
         used."""
-        t, bcs = self.boundary["type"], []
+        t = self.boundary["type"]
+        bcs: list[fem.DirichletBC] = []
         if t == "clamped" and not self.boundary["in_plane"]:
             dl = fem.locate_dofs_topological(V, 1, self.left_facets)
             dr = fem.locate_dofs_topological(V, 1, self.right_facets)
             return [fem.dirichletbc(u_left, dl), fem.dirichletbc(u_right, dr)]
 
-        def comp(facets, i, func, dim=1):
+        def comp(facets: np.ndarray, i: int, func: fem.Function | None,
+                 dim: int = 1) -> tuple[fem.DirichletBC, fem.Function, fem.Function | None]:
             Vi, _ = V.sub(i).collapse()
             dofs = fem.locate_dofs_topological((V.sub(i), Vi), dim, facets)
             fi = fem.Function(Vi)
@@ -101,7 +117,7 @@ class ShellSheet(Sheet):
             edges += [(self.left_facets, 1, u_left), (self.right_facets, 1, u_right)]
         if t == "biaxial":
             edges += [(self.bottom_facets, 1, u_left), (self.top_facets, 1, u_right)]
-        self._linked = []                       # (bc function, source Function, component)
+        self._linked: list[tuple[fem.Function, fem.Function, int]] = []   # (bc function, source, component)
         for facets, i, src in edges:
             bc, fi, _ = comp(facets, i, src)
             bcs.append(bc)
@@ -121,11 +137,11 @@ class ShellSheet(Sheet):
             bcs.append(bc)
         return bcs
 
-    def _update_bcs(self):
+    def _update_bcs(self) -> None:
         for fi, src, i in getattr(self, "_linked", []):
             fi.x.array[:] = src.sub(i).collapse().x.array
 
-    def energy(self, u, f_imp=None):
+    def energy(self, u: fem.Function, f_imp: Expr | None = None) -> tuple[ufl.Form, Expr, Expr]:
         msh, mat, a = self.msh, self.mat, self.alpha
         x = ufl.SpatialCoordinate(msh)
         phi = ufl.as_vector([x[0], x[1], 0.0]) + u
@@ -172,7 +188,8 @@ class ShellSheet(Sheet):
             Pi -= f_imp * u[2] * dx
         return Pi, N, phi
 
-    def solve(self, Deltas, f_imp=None, observers=(), predictor=None, newton_kw=None):
+    def solve(self, Deltas: Iterable[float], f_imp: Expr | None = None, observers: Sequence[Observer] = (),
+              predictor: Observer | None = None, newton_kw: Mapping[str, Any] | None = None) -> list[StepResult]:
         """Displacement-controlled solve over Deltas (same contract as
         Sheet.postbuckling). f_imp: optional transverse load density (UFL
         expression) acting as an imperfection."""
@@ -203,7 +220,8 @@ class ShellSheet(Sheet):
         react = fem.form(ufl.replace(R, {du: ufl.as_vector([x[0] / self.L, 0.0, 0.0])}))
         self.u = u
 
-        out, prev, u_prev = [], 0.0, u.x.array.copy()
+        out: list[StepResult] = []
+        prev, u_prev = 0.0, u.x.array.copy()
         Deltas, i = list(Deltas), 0
         use_predictor = True
         while i < len(Deltas):

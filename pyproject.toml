@@ -29,6 +29,12 @@ files = [
     "kirigami/api.py",
     "kirigami/kdb.py",
     "kirigami/mjcf.py",
+    "kirigami/geometry.py",
+    "kirigami/export.py",
+    "kirigami/strain.py",
+    "kirigami/fvk.py",
+    "kirigami/shell.py",
+    "kirigami/tube.py",
 ]
 python_version = "3.12"
 ignore_missing_imports = true        # dolfinx, gmsh, mujoco have no stubs here

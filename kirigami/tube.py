@@ -37,6 +37,11 @@ the pop-up when the cells are all alike (periodic tube).
 Units: mm, MPa, N. Cuts come from tube_cut_mesh (zero-width cracks or kerf
 holes); no KiriSMILES support yet.
 """
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from typing import Any
+
 import numpy as np
 import ufl
 import basix.ufl
@@ -46,15 +51,20 @@ from dolfinx.fem.petsc import NonlinearProblem
 from dolfinx.nls.petsc import NewtonSolver
 from mpi4py import MPI
 
-from kirigami.fvk import _moment
+from kirigami.fvk import Material, _moment
+from kirigami.geometry import Shape, _require
 from kirigami.shell import _membrane
 
 BOTTOM, TOP = 1, 2
+TUBE_ENDS = ("free", "clamped", "periodic")       # "periodic" is set by PeriodicTube
 
 
-def tube_mesh(R, Lz, h, order=2):
+def tube_mesh(R: float, Lz: float, h: float, order: int = 2) -> tuple[Any, Any]:
     """Closed lateral surface of a cylinder of radius R and length Lz (along z),
-    element size h, geometry of the given order. Returns (mesh, facet tags)."""
+    element size h, geometry of the given order (1 or 2). Returns (mesh, facet tags)."""
+    _require(R=(R, ">0"), Lz=(Lz, ">0"), h=(h, ">0"))
+    if order not in (1, 2):
+        raise ValueError(f"order must be 1 or 2, not {order}")
     import gmsh
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 0)
@@ -63,7 +73,8 @@ def tube_mesh(R, Lz, h, order=2):
     out = gmsh.model.occ.extrude([(1, c)], 0, 0, Lz)
     gmsh.model.occ.synchronize()
     surf = [t for d, t in out if d == 2]
-    bot, top = [], []
+    bot: list[int] = []
+    top: list[int] = []
     for d, t in gmsh.model.getEntities(1):
         bb = gmsh.model.getBoundingBox(d, t)
         tol = 1e-5 * max(1.0, Lz)                 # OCC bounding boxes are padded
@@ -85,20 +96,20 @@ def tube_mesh(R, Lz, h, order=2):
     return msh, ft
 
 
-def _clip(poly, C):
+def _clip(poly: Shape, C: float) -> list[np.ndarray]:
     """Pieces of a polyline (and its copies shifted by multiples of C) that lie in
     0 <= x <= C."""
     P = np.asarray(poly, float)
-    out = []
+    out: list[np.ndarray] = []
     for k in range(int(np.floor(P[:, 0].min() / C)) - 1, int(np.ceil(P[:, 0].max() / C)) + 1):
         Q = P - [k * C, 0.0]
-        pts = [Q[0]]
+        pts: list[np.ndarray] = [Q[0]]
         for a, b in zip(Q[:-1], Q[1:]):
             ts = sorted((xc - a[0]) / (b[0] - a[0]) for xc in (0.0, C) if (a[0] - xc) * (b[0] - xc) < 0)
             pts += [a + t * (b - a) for t in ts] + [b]
-        pts = np.array(pts)
-        cur = []
-        for a, b in zip(pts[:-1], pts[1:]):
+        A = np.array(pts)
+        cur: list[np.ndarray] = []
+        for a, b in zip(A[:-1], A[1:]):
             if -1e-9 <= 0.5 * (a[0] + b[0]) <= C + 1e-9:
                 if not cur:
                     cur = [a]
@@ -111,24 +122,29 @@ def _clip(poly, C):
     return out
 
 
-def slot(poly, w):
+def slot(poly: Shape, w: float) -> list[tuple[float, float]]:
     """Closed outline of width w around an open polyline (square ends, mitred
     corners): a cut with kerf w."""
+    _require(w=(w, ">0"))
     P = np.asarray(poly, float)
+    if P.ndim != 2 or P.shape[1] != 2 or len(P) < 2:
+        raise ValueError(f"slot needs a polyline of at least two (s, z) points, got shape {P.shape}")
     d = np.diff(P, axis=0)
     d /= np.linalg.norm(d, axis=1)[:, None]
     nrm = np.column_stack([-d[:, 1], d[:, 0]])
-    off = [nrm[0]]
+    off_l = [nrm[0]]
     for k in range(1, len(P) - 1):
         m = nrm[k - 1] + nrm[k]
-        off.append(m / np.dot(m, nrm[k]))          # mitre: unit offset from both segments
-    off.append(nrm[-1])
-    off = np.array(off) * w / 2
-    return [tuple(q) for q in np.vstack([P + off, (P - off)[::-1]])]
+        off_l.append(m / np.dot(m, nrm[k]))        # mitre: unit offset from both segments
+    off_l.append(nrm[-1])
+    off = np.array(off_l) * w / 2
+    return [(float(q[0]), float(q[1])) for q in np.vstack([P + off, (P - off)[::-1]])]
 
 
-def tube_cut_mesh(C, Lz, cuts, tips=(), h_far=1.2, h_cut=0.5, h_tip=0.15, r_tip=1.0,
-                  cut_dist=(0.3, 2.0), holes=(), periodic_z=False):
+def tube_cut_mesh(C: float, Lz: float, cuts: Sequence[Shape], tips: Sequence[tuple[float, float]] = (),
+                  h_far: float = 1.2, h_cut: float = 0.5, h_tip: float = 0.15, r_tip: float = 1.0,
+                  cut_dist: tuple[float, float] = (0.3, 2.0), holes: Sequence[Shape] = (),
+                  periodic_z: bool = False) -> tuple[Any, Any, dict[str, Any]]:
     """Closed tube of circumference C and length Lz with zero-width cuts and holes.
 
     holes  closed polygons in (s, z) removed from the sheet (e.g. slot(cut, kerf));
@@ -148,6 +164,10 @@ def tube_cut_mesh(C, Lz, cuts, tips=(), h_far=1.2, h_cut=0.5, h_tip=0.15, r_tip=
           attached above z = Lz. info["ghost_cells"] lists the ghost cells and
           info["master"] pairs (node, node it copies) for every ghost node, including
           the nodes on z = Lz; PeriodicTube ties each to its partner plus Delta e_z."""
+    _require(C=(C, ">0"), Lz=(Lz, ">0"), h_far=(h_far, ">0"), h_cut=(h_cut, ">0"), h_tip=(h_tip, ">0"),
+             r_tip=(r_tip, ">0"))
+    if not 0 <= cut_dist[0] < cut_dist[1]:
+        raise ValueError(f"cut_dist = {tuple(cut_dist)} needs 0 <= d_min < d_max")
     import gmsh
     from dolfinx import mesh as dmesh
     from dolfinx.io.gmshio import cell_perm_array
@@ -256,20 +276,20 @@ def tube_cut_mesh(C, Lz, cuts, tips=(), h_far=1.2, h_cut=0.5, h_tip=0.15, r_tip=
     xyz = xyz.reshape(-1, 3)
     idx = np.full(int(tags.max()) + 1, -1)
     idx[tags.astype(int)] = np.arange(len(tags))
-    tri = []
+    tri_blocks: list[np.ndarray] = []
     for s in surfs:
         types, _, nodes = gmsh.model.mesh.getElements(2, s)
         for ty, nd in zip(types, nodes):
             if ty != 9:
                 raise RuntimeError(f"tube_cut_mesh: unexpected element type {ty}")
-            tri.append(idx[nd.astype(int)].reshape(-1, 6))
-    tri = np.vstack(tri)
-    cut_edges = []
+            tri_blocks.append(idx[nd.astype(int)].reshape(-1, 6))
+    tri: np.ndarray = np.vstack(tri_blocks)              # (n_triangles, 6) quadratic triangles
+    edge_blocks: list[np.ndarray] = []
     for c in cut_curves:
         types, _, nodes = gmsh.model.mesh.getElements(1, c)
         for ty, nd in zip(types, nodes):
-            cut_edges.append(idx[nd.astype(int)].reshape(-1, 3))
-    cut_edges = np.vstack(cut_edges) if cut_edges else np.zeros((0, 3), int)
+            edge_blocks.append(idx[nd.astype(int)].reshape(-1, 3))
+    cut_edges = np.vstack(edge_blocks) if edge_blocks else np.zeros((0, 3), int)
     gmsh.finalize()
 
     # merge the seam: nodes on s = C onto their partners on s = 0
@@ -291,7 +311,7 @@ def tube_cut_mesh(C, Lz, cuts, tips=(), h_far=1.2, h_cut=0.5, h_tip=0.15, r_tip=
     tri, cut_edges = rep[tri], rep[cut_edges]
 
     n_real = len(tri)
-    master = []
+    master: list[tuple[int, int]] = []
     if periodic_z:
         # nodes on z = Lz are tied to their partners on z = 0
         used = np.unique(tri)
@@ -301,7 +321,7 @@ def tube_cut_mesh(C, Lz, cuts, tips=(), h_far=1.2, h_cut=0.5, h_tip=0.15, r_tip=
             raise RuntimeError(f"tube_cut_mesh: ring node counts differ ({len(on_b)}, {len(on_t)})")
         xb = xyz[on_b, 0]
         ob = np.argsort(xb)
-        partner = {}
+        partner: dict[int, int] = {}
         for i in on_t:
             k = np.searchsorted(xb[ob], xyz[i, 0])
             cand = [ob[j] for j in (k - 1, k) if 0 <= j < len(ob)]
@@ -313,7 +333,8 @@ def tube_cut_mesh(C, Lz, cuts, tips=(), h_far=1.2, h_cut=0.5, h_tip=0.15, r_tip=
         # ghost band: copies of the cells with an edge on z = 0, shifted by Lz
         corner = np.abs(xyz[tri[:, :3], 1]) < tol
         band = tri[corner.sum(1) >= 2]
-        new_id, extra = {}, []
+        new_id: dict[int, int] = {}
+        extra: list[np.ndarray] = []
         for n in np.unique(band):
             if n in partner:
                 new_id[n] = partner[n]
@@ -340,11 +361,11 @@ def tube_cut_mesh(C, Lz, cuts, tips=(), h_far=1.2, h_cut=0.5, h_tip=0.15, r_tip=
         if ra != rb:
             parent[rb] = ra
     cut_set = {(min(a, b), max(a, b)) for a, b, _ in cut_edges}
-    edges = {}
-    for t in range(T):
+    edges: dict[tuple[int, int], list[tuple[int, int, int, int]]] = {}
+    for ti in range(T):
         for la, lb, lm in ((0, 1, 3), (1, 2, 4), (2, 0, 5)):
-            a, b = tri[t, la], tri[t, lb]
-            edges.setdefault((min(a, b), max(a, b)), []).append((t, la, lb, lm))
+            a, b = tri[ti, la], tri[ti, lb]
+            edges.setdefault((min(a, b), max(a, b)), []).append((ti, la, lb, lm))
     n_cut = 0
     for k, occs in edges.items():
         if len(occs) > 2:
@@ -380,7 +401,7 @@ def tube_cut_mesh(C, Lz, cuts, tips=(), h_far=1.2, h_cut=0.5, h_tip=0.15, r_tip=
     val = np.concatenate([np.full(len(bot), BOTTOM), np.full(len(top), TOP)]).astype(np.int32)
     o = np.argsort(fac)
     ft = dmesh.meshtags(msh, 1, fac[o], val[o])
-    info = {"triangles": int(n_real), "nodes": int(new.max() + 1), "cut_pieces": len(pieces),
+    info: dict[str, Any] = {"triangles": int(n_real), "nodes": int(new.max() + 1), "cut_pieces": len(pieces),
             "cut_edges": int(len(cut_set)), "seam_nodes": int(len(on_l)), "R": float(R)}
     if periodic_z:
         cls = np.empty(len(xyz), dtype=np.int64)
@@ -390,7 +411,8 @@ def tube_cut_mesh(C, Lz, cuts, tips=(), h_far=1.2, h_cut=0.5, h_tip=0.15, r_tip=
     return msh, ft, info
 
 
-def radial_imperfection(msh, Lz, amp, seed=0, m_max=16, k_max=8):
+def radial_imperfection(msh: Any, Lz: float, amp: float, seed: int = 0, m_max: int = 16,
+                        k_max: int = 8) -> float:
     """Perturb the tube's geometry radially, in place: x -> x + w0(theta, z) e_r with
 
         w0 = sum_{m=0..m_max, k=0..k_max, (m,k) != (0,0)} a_mk cos(m theta + 2 pi k z / Lz + p_mk)
@@ -403,6 +425,9 @@ def radial_imperfection(msh, Lz, amp, seed=0, m_max=16, k_max=8):
     symmetry between the cells around and along the tube, so that Newton does not
     stall at the bifurcation where identical cells could buckle in many ways.
     Returns the applied max |w0|."""
+    _require(Lz=(Lz, ">0"), amp=(amp, ">=0"), m_max=(m_max, ">=0"), k_max=(k_max, ">=0"))
+    if m_max == k_max == 0:
+        raise ValueError("radial_imperfection needs m_max > 0 or k_max > 0 (no mode otherwise)")
     x = msh.geometry.x
     th = np.arctan2(x[:, 1], x[:, 0])
     z = x[:, 2]
@@ -429,15 +454,19 @@ class Tube:
     mesh  optional (mesh, facet tags) from tube_cut_mesh; h is then the smallest
           element size (used in the interior-penalty terms)."""
 
-    def __init__(self, R, Lz, mat, h=0.5, alpha=10.0, order=2, mesh=None, ends="free",
-                 imperfection=None):
+    def __init__(self, R: float, Lz: float, mat: Material, h: float = 0.5, alpha: float = 10.0,
+                 order: int = 2, mesh: tuple[Any, Any] | None = None, ends: str = "free",
+                 imperfection: Mapping[str, Any] | None = None) -> None:
+        _require(R=(R, ">0"), Lz=(Lz, ">0"), h=(h, ">0"), alpha=(alpha, ">0"))
+        if ends not in TUBE_ENDS:
+            raise ValueError(f"ends must be one of {list(TUBE_ENDS)}, not {ends!r}")
         self.R, self.Lz, self.mat, self.alpha, self.h = R, Lz, mat, alpha, h
         self.ends = ends
         self.msh, self.ft = mesh if mesh is not None else tube_mesh(R, Lz, h, order)
         msh = self.msh
         # geometric imperfection {"amp": mm, "seed": int}: radial_imperfection, applied
         # before anything is computed from the geometry
-        self.imperfection = None
+        self.imperfection: dict[str, Any] | None = None
         if imperfection and imperfection.get("amp", 0) > 0:
             self.imperfection = dict(imperfection)
             self.imperfection["applied"] = radial_imperfection(msh, Lz, **imperfection)
@@ -461,7 +490,7 @@ class Tube:
         self.x = x
 
     # ------------------------------------------------------------- kinematics
-    def _kin(self, phi):
+    def _kin(self, phi: Any) -> tuple[Any, Any, Any, Any]:
         e1, e2 = self.e1, self.e2
         G = ufl.grad(phi)                                    # 3 x 3, tangential
         F1, F2 = G * e1, G * e2
@@ -474,7 +503,7 @@ class Tube:
         K = ufl.as_matrix([[k11, k12], [k12, k22]])
         return G, F, nd, K
 
-    def energy(self, u):
+    def energy(self, u: fem.Function) -> ufl.Form:
         mat, a, c = self.mat, self.alpha, self.c
         phi = self.x + u
         G, F, nd, K = self._kin(phi)
@@ -513,7 +542,7 @@ class Tube:
         return Pi
 
     # ------------------------------------------------------------------ solve
-    def setup(self):
+    def setup(self) -> None:
         V = self.V
         u = fem.Function(V)
         self.u_prev = fem.Function(V)
@@ -537,7 +566,7 @@ class Tube:
         self._top_sub = dtop[1]                              # top-ring dofs in the collapsed z space
         self._Vz_map = V.sub(2).collapse()[1]
 
-        def newton(bc_list):
+        def newton(bc_list: list[fem.DirichletBC]) -> NewtonSolver:
             s = NewtonSolver(self.msh.comm, NonlinearProblem(R, u, bcs=bc_list, J=J))
             s.convergence_criterion = "residual"
             s.rtol, s.atol, s.max_it = 1e-9, 1e-10, 30
@@ -549,16 +578,19 @@ class Tube:
         x = self.x
         self.react = fem.form(ufl.replace(R_el, {du: ufl.as_vector([0.0, 0.0, x[2] / self.Lz])}))
 
-    def top_uz(self):
+    def top_uz(self) -> float:
         """Mean z displacement of the top ring."""
         return float(self.u.x.array[np.asarray(self._Vz_map)[self._top_sub]].mean())
 
-    def step(self, Delta, c, free_top=False, guess=None):
-        """Newton solve at end displacement Delta and natural-shape parameter c.
+    def step(self, Delta: float, c: float, free_top: bool = False, guess: np.ndarray | None = None) -> bool:
+        """Newton solve at end displacement Delta and natural-shape parameter c (in [0, 1]).
+        Returns True if Newton converged; otherwise the last converged state is restored.
         free_top: leave the top ring free in z (Delta unused), as when a rolled
         sheet is allowed to change length before its ends are fixed.
         guess: starting point of Newton (default: the last converged state). It
         changes only where Newton starts, not the equations it solves."""
+        if not 0.0 <= c <= 1.0:
+            raise ValueError(f"the natural-shape parameter c must be in [0, 1], not {c}")
         self.uz_top.x.array[:] = Delta
         self.c.value = c
         if guess is not None:
@@ -575,7 +607,7 @@ class Tube:
         return True
 
     # ------------------------------------------------------------- observables
-    def mid_band(self, half):
+    def mid_band(self, half: float) -> dict[str, float]:
         """Mean radius, mean hoop moment m_ss and mean membrane strains over
         |z - Lz/2| < half."""
         x = self.x
@@ -585,7 +617,7 @@ class Tube:
         area = fem.assemble_scalar(fem.form(ind * dx))
         phi = self._phi
         rad = ufl.sqrt(phi[0]**2 + phi[1]**2)
-        vals = {}
+        vals: dict[str, float] = {}
         for k, expr in (("radius", rad), ("m_ss", self._M[0, 0]), ("m_zz", self._M[1, 1]),
                         ("n_zz", self._N[1, 1]), ("n_ss", self._N[0, 0])):
             vals[k] = fem.assemble_scalar(fem.form(ind * expr * dx)) / area
@@ -606,7 +638,10 @@ class PeriodicTube(Tube):
     the x axis and u_x at one node near the y axis, half way up the period. With
     Delta free (rolling step) Delta is one more unknown, i.e. zero axial force."""
 
-    def __init__(self, R, Lz, mat, mesh, info, h=0.5, alpha=10.0, imperfection=None):
+    def __init__(self, R: float, Lz: float, mat: Material, mesh: tuple[Any, Any], info: Mapping[str, Any],
+                 h: float = 0.5, alpha: float = 10.0, imperfection: Mapping[str, Any] | None = None) -> None:
+        if "ghost_cells" not in info or "master" not in info:
+            raise ValueError("PeriodicTube needs the info of tube_cut_mesh(..., periodic_z=True)")
         super().__init__(R, Lz, mat, h=h, alpha=alpha, mesh=mesh, ends="periodic",
                          imperfection=imperfection)
         msh = self.msh
@@ -633,7 +668,7 @@ class PeriodicTube(Tube):
         self.gblk, self.mblk = g, m
         self.real_cells = np.flatnonzero(~self.ghost_cell)
 
-    def setup(self):
+    def setup(self) -> None:
         from petsc4py import PETSc
         from dolfinx.fem import petsc as fp
         V = self.V
@@ -674,7 +709,7 @@ class PeriodicTube(Tube):
         nf = len(free)
         self.gz, self.mz = 3 * self.gblk + 2, 3 * self.mblk + 2
 
-        def build(extra):
+        def build(extra: int) -> Any:          # PETSc.Mat: u = T v (v free dofs [+ Delta])
             rows = np.flatnonzero(col >= 0)
             nnz = np.ones(n, dtype=np.int32)
             nnz[self.gz] += extra
@@ -687,15 +722,16 @@ class PeriodicTube(Tube):
             T.assemble()
             return T
         self.T = {False: build(0), True: build(1)}
-        self.A = {False: None, True: None}
-        self.ksp = {False: None, True: None}
+        self.A: dict[bool, Any] = {False: None, True: None}
+        self.ksp: dict[bool, Any] = {False: None, True: None}
         self.nfree = nf
 
-    def delta(self):
+    def delta(self) -> float:
+        """The stretch of the period: mean z offset of the ghost nodes from their masters."""
         a = self.u.x.array
         return float(np.mean(a[self.gz] - a[self.mz]))
 
-    def _residual(self, form, vec):
+    def _residual(self, form: Any, vec: Any) -> Any:
         from petsc4py import PETSc
         from dolfinx.fem import petsc as fp
         with vec.localForm() as loc:
@@ -704,7 +740,7 @@ class PeriodicTube(Tube):
         vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         return vec
 
-    def _newton(self, free_delta, rtol=1e-9, atol=1e-10, max_it=30):
+    def _newton(self, free_delta: bool, rtol: float = 1e-9, atol: float = 1e-10, max_it: int = 30) -> bool:
         from petsc4py import PETSc
         from dolfinx.fem import petsc as fp
         T = self.T[free_delta]
@@ -755,11 +791,13 @@ class PeriodicTube(Tube):
             self.u.x.scatter_forward()
         return False
 
-    def step(self, Delta, c, free_top=False, guess=None):
+    def step(self, Delta: float, c: float, free_top: bool = False, guess: np.ndarray | None = None) -> bool:
         """Newton solve at period stretch Delta (Delta free if free_top: zero axial
         force) and natural-shape parameter c. guess: starting point of Newton
         (default: the last converged state); it is made admissible by a rigid
         translation that puts the pinned dofs back, and by re-tying the ghosts."""
+        if not 0.0 <= c <= 1.0:
+            raise ValueError(f"the natural-shape parameter c must be in [0, 1], not {c}")
         self.c.value = c
         a = self.u.x.array
         if guess is not None:
@@ -781,10 +819,10 @@ class PeriodicTube(Tube):
         self.delta_prev = self.delta()
         return True
 
-    def top_uz(self):
+    def top_uz(self) -> float:
         return self.delta()
 
-    def force(self):
+    def force(self) -> float:
         """Axial force carried by the tube, dPi/dDelta (without damping)."""
         v = self._residual(self.Ref, self.Revec).getArray()
         return float(v[self.gz].sum())

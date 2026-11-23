@@ -11,7 +11,11 @@ Nitsche). The edges y=0, y=W and the cut faces are free.
 
 Units: mm, MPa (N/mm^2), N.
 """
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import ufl
@@ -21,6 +25,14 @@ from dolfinx.fem.petsc import (LinearProblem, NonlinearProblem, assemble_matrix)
 from dolfinx.nls.petsc import NewtonSolver
 from mpi4py import MPI
 from petsc4py import PETSc
+
+from kirigami.spec import MATERIAL_MODELS
+
+# called after each converged load step as f(Delta, solution Function, sheet); the
+# returns are collected. A predictor has the same signature and may change the solution
+# in place before the step is solved.
+Observer = Callable[[float, fem.Function, Any], Any]
+StepResult = tuple[float, float, list[Any]]               # (Delta, reaction force, observer returns)
 
 
 @dataclass
@@ -33,21 +45,27 @@ class Material:
     # strong compression, for hinges that are squeezed far). The FvK model is always SVK.
     model: str = "svk"
 
+    def __post_init__(self) -> None:
+        if not (self.E > 0 and self.h > 0):
+            raise ValueError(f"Material needs E > 0 and h > 0, got E = {self.E}, h = {self.h}")
+        if self.model not in MATERIAL_MODELS:
+            raise ValueError(f"Material.model must be one of {list(MATERIAL_MODELS)}, not {self.model!r}")
+
     @property
-    def Y(self):           # stretching rigidity E h
+    def Y(self) -> float:  # stretching rigidity E h
         return self.E * self.h
 
     @property
-    def D(self):           # bending rigidity E h^3 / 12(1 - nu^2)
+    def D(self) -> float:  # bending rigidity E h^3 / 12(1 - nu^2)
         return self.E * self.h**3 / (12 * (1 - self.nu**2))
 
 
-def _membrane_stress(eps, mat):
+def _membrane_stress(eps: ufl.core.expr.Expr, mat: Material) -> ufl.core.expr.Expr:
     I = ufl.Identity(2)
     return mat.Y / (1 - mat.nu**2) * ((1 - mat.nu) * eps + mat.nu * ufl.tr(eps) * I)
 
 
-def _moment(kappa, mat):
+def _moment(kappa: ufl.core.expr.Expr, mat: Material) -> ufl.core.expr.Expr:
     I = ufl.Identity(2)
     return mat.D * ((1 - mat.nu) * kappa + mat.nu * ufl.tr(kappa) * I)
 
@@ -55,7 +73,12 @@ def _moment(kappa, mat):
 class Sheet:
     """Holds mesh, function spaces, measures and boundary data of one problem."""
 
-    def __init__(self, msh, L, mat=Material(), alpha=10.0):
+    def __init__(self, msh: dmesh.Mesh, L: float, mat: Material | None = None, alpha: float = 10.0) -> None:
+        """msh: the sheet [0, L] x [0, W] (kirigami/geometry.py); mat: default PET; alpha:
+        interior-penalty factor (> 0; about 10 is enough for stability)."""
+        if not (L > 0 and alpha > 0):
+            raise ValueError(f"Sheet needs L > 0 and alpha > 0, got L = {L}, alpha = {alpha}")
+        mat = Material() if mat is None else mat
         self.msh, self.L, self.mat, self.alpha = msh, L, mat, alpha
         tdim = msh.topology.dim
         msh.topology.create_connectivity(tdim - 1, tdim)
@@ -83,7 +106,7 @@ class Sheet:
         self.v_react = ufl.as_vector([x[0] / L, 0.0])
 
     # ---------------------------------------------------------------- bending
-    def bending_energy(self, w):
+    def bending_energy(self, w: ufl.core.expr.Expr) -> ufl.Form:
         """CIP Kirchhoff bending energy, with dw/dn = 0 imposed weakly on the
         clamped edges (ds(1), ds(2))."""
         mat, a = self.mat, self.alpha
@@ -103,11 +126,11 @@ class Sheet:
                 + 0.5 * a * mat.D / hE * dn**2 * clamp)
 
     # --------------------------------------------------------------- in-plane
-    def solve_inplane(self, Delta=1.0):
+    def solve_inplane(self, Delta: float = 1.0) -> tuple[fem.Function, ufl.core.expr.Expr, float]:
         """Linear plane-stress problem. Returns (u, N, reaction force)."""
         U = self.U
         u, v = ufl.TrialFunction(U), ufl.TestFunction(U)
-        eps = lambda z: ufl.sym(ufl.grad(z))
+        eps = lambda z: ufl.sym(ufl.grad(z))     # noqa: E731
         a = ufl.inner(_membrane_stress(eps(u), self.mat), eps(v)) * ufl.dx
         f = ufl.inner(fem.Constant(self.msh, (0.0, 0.0)), v) * ufl.dx
         bcs = self._u_bcs(U, Delta)
@@ -118,7 +141,7 @@ class Sheet:
         F = self.reaction(N)
         return uh, N, F
 
-    def _u_bcs(self, U, Delta):
+    def _u_bcs(self, U: fem.FunctionSpace, Delta: float) -> list[fem.DirichletBC]:
         """Dirichlet conditions u=0 on x=0 and u=(Delta,0) on x=L."""
         dl = fem.locate_dofs_topological(U, 1, self.left_facets)
         dr = fem.locate_dofs_topological(U, 1, self.right_facets)
@@ -126,17 +149,19 @@ class Sheet:
         delta = fem.Constant(self.msh, (float(Delta), 0.0))
         return [fem.dirichletbc(zero, dl, U), fem.dirichletbc(delta, dr, U)]
 
-    def reaction(self, N):
+    def reaction(self, N: ufl.core.expr.Expr) -> float:
         """Force on the x=L edge, computed as the virtual work of the membrane
         stress against v = (x/L, 0) (valid at equilibrium)."""
         form = fem.form(ufl.inner(N, ufl.sym(ufl.grad(self.v_react))) * ufl.dx)
         return self.msh.comm.allreduce(fem.assemble_scalar(form), op=MPI.SUM)
 
     # --------------------------------------------------------- linear buckling
-    def linear_buckling(self, N0, nev=6):
+    def linear_buckling(self, N0: ufl.core.expr.Expr, nev: int = 6) -> tuple[list[float], list[fem.Function]]:
         """Solve K_b phi = lambda (-K_g(N0)) phi for the smallest positive
         lambda; N0 is the membrane stress for a unit applied Delta, so the
         lambdas are critical displacements. Returns (lambdas, modes)."""
+        if nev < 1:
+            raise ValueError(f"nev must be at least 1, not {nev}")
         from slepc4py import SLEPc
         W = self.W
         w, v = ufl.TrialFunction(W), ufl.TestFunction(W)
@@ -161,7 +186,8 @@ class Sheet:
         pc = ksp.getPC(); pc.setType("lu"); pc.setFactorSolverType("mumps")
         eps.setTolerances(1e-10, 500)
         eps.solve()
-        lams, modes = [], []
+        lams: list[float] = []
+        modes: list[fem.Function] = []
         for i in range(eps.getConverged()):
             vr = B.createVecRight()
             mu = eps.getEigenpair(i, vr).real
@@ -177,7 +203,9 @@ class Sheet:
         return [lams[i] for i in idx], [modes[i] for i in idx]
 
     # ----------------------------------------------------------- post-buckling
-    def postbuckling(self, Deltas, w_imp=None, observers=(), predictor=None, newton_kw=None):
+    def postbuckling(self, Deltas: Iterable[float], w_imp: Any = None, observers: Sequence[Observer] = (),
+                     predictor: Observer | None = None,
+                     newton_kw: Mapping[str, Any] | None = None) -> list[StepResult]:
         """Displacement-controlled FvK solve over the sequence Deltas.
 
         w_imp: initial geometric imperfection (Function on self.W); the strain
@@ -229,7 +257,7 @@ class Sheet:
         react = fem.form(ufl.inner(N, ufl.sym(ufl.grad(self.v_react))) * ufl.dx)
         self.q, self.w0, self.N = q, w0, N
 
-        out = []
+        out: list[StepResult] = []
         prev = 0.0
         q_prev = q.x.array.copy()
         Deltas = list(Deltas)
