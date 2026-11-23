@@ -31,6 +31,8 @@ Usage:
 Host side only: it starts the FEniCSx container through scripts/kirigami_cli.py
 and post-processes with scripts/make_gif.py and scripts/compare_designs.py.
 """
+from __future__ import annotations
+
 import json
 import os
 import queue
@@ -41,9 +43,16 @@ import threading
 import time
 import traceback
 import uuid
+import zipfile
 from pathlib import Path
+from types import ModuleType
+from typing import IO, Any
 
 import numpy as np
+
+from kirigami._types import Spec, Summary
+
+Job = dict[str, Any]        # a job record: id, name, state, message, progress, ..., result, spec
 
 ROOT = Path(__file__).resolve().parent.parent
 RUNS = ROOT / "results" / "runs"
@@ -52,7 +61,7 @@ STALE_AFTER = 60.0          # s: a queued or running record not refreshed for th
 ACTIVE = ("queued", "running")
 
 
-def _scripts():
+def _scripts() -> tuple[ModuleType, ModuleType, ModuleType]:
     """The host-side helpers in scripts/ (the CLI, GIF rendering, run analysis)."""
     p = str(ROOT / "scripts")
     if p not in sys.path:
@@ -63,7 +72,8 @@ def _scripts():
     return kirigami_cli, make_gif, compare_designs
 
 
-def rel(path):
+def rel(path: str | os.PathLike[str]) -> str:
+    """A path inside the repository, relative to its root, with forward slashes."""
     return Path(path).resolve().relative_to(ROOT).as_posix()
 
 
@@ -76,10 +86,12 @@ class SolverLock:
     Within one process, every acquire opens its own handle, so two threads
     exclude each other too."""
 
-    def __init__(self, path=None):
-        self.path, self.fh = Path(path or LOCK_FILE), None
+    def __init__(self, path: str | os.PathLike[str] | None = None) -> None:
+        self.path = Path(path or LOCK_FILE)
+        self.fh: IO[str] | None = None
 
-    def try_acquire(self):
+    def try_acquire(self) -> bool:
+        """Take the lock if it is free; never waits."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         fh = open(self.path, "a+")
         try:
@@ -96,7 +108,7 @@ class SolverLock:
         self.fh = fh
         return True
 
-    def release(self):
+    def release(self) -> None:
         if self.fh is None:
             return
         try:
@@ -111,14 +123,14 @@ class SolverLock:
             self.fh.close()
             self.fh = None
 
-    def __enter__(self):
+    def __enter__(self) -> SolverLock:
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: object) -> None:
         self.release()
 
 
-def docker_ok():
+def docker_ok() -> str | None:
     """None if Docker answers, otherwise a readable reason."""
     try:
         r = subprocess.run(["docker", "info", "--format", "{{.ServerVersion}}"],
@@ -132,30 +144,37 @@ def docker_ok():
     return None
 
 
-def foreign_solver_running():
+def _docker_ps(*filters: str) -> bool:
+    """True if `docker ps` lists a container matching every filter; False also when
+    Docker is missing or does not answer (docker_ok() reports why)."""
+    args = ["docker", "ps", "-q"] + [a for f in filters for a in ("--filter", f)]
+    try:
+        r = subprocess.run(args, capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired):     # OSError includes Docker not installed
+        return False
+    return r.returncode == 0 and bool(r.stdout.strip())
+
+
+def foreign_solver_running() -> bool:
     """True if a solver container is running that does not hold the lock
     (for example one started by a tool that predates it)."""
-    try:
-        r = subprocess.run(["docker", "ps", "--filter", "label=kirigami=1", "-q"],
-                           capture_output=True, text=True, timeout=20)
-        return bool(r.stdout.strip())
-    except Exception:
-        return False
+    return _docker_ps("label=kirigami=1")
 
 
-def container_running(name):
-    try:
-        r = subprocess.run(["docker", "ps", "--filter", f"name=^{name}$", "-q"],
-                           capture_output=True, text=True, timeout=20)
-        return bool(r.stdout.strip())
-    except Exception:
-        return False
+def container_running(name: str) -> bool:
+    """True if the container with exactly this name is running."""
+    return _docker_ps(f"name=^{name}$")
 
 
-def run_now(cmd, spec, *extra):
+RUN_NOW_COMMANDS = ("buckle", "stiffness", "export", "stl", "mesh")
+
+
+def run_now(cmd: str, spec: Spec, *extra: object) -> Summary:
     """Run a short solver command (buckle, export, stl, mesh) right away, if the
     solver is free. Returns the command's JSON result, with ok=False and a
     reason when it cannot run."""
+    if cmd not in RUN_NOW_COMMANDS:
+        raise ValueError(f"run_now runs {list(RUN_NOW_COMMANDS)}; a full simulation goes through Runner.submit")
     cli, _, _ = _scripts()
     why = docker_ok()
     if why:
@@ -171,23 +190,28 @@ def run_now(cmd, spec, *extra):
 
 # --------------------------------------------------------------- run analysis
 
-def run_progress(name, spec):
+def run_progress(name: str, spec: Spec) -> tuple[float, int, float]:
     """(fraction of the load ramp done, steps saved, current Delta) from the
-    history the solver saves after every step."""
+    history the solver saves after every step; (0, 0, 0) while there is none yet."""
     try:
-        d = np.load(RUNS / name / "history.npz")
-        D, Dc = d["Delta"], float(d["Delta_c"])
-        if len(D) < 2:
-            return 0.02, len(D), float(D[-1]) if len(D) else 0.0
-        Dmax = spec["load"]["Dmax"]
-        frac = np.log(D[-1] / (0.5 * Dc)) / np.log(Dmax / (0.5 * Dc))
-        return float(np.clip(frac, 0, 1)), len(D), float(D[-1])
-    except Exception:
-        return 0.0, 0, 0.0
+        with np.load(RUNS / name / "history.npz") as d:
+            D, Dc = d["Delta"], float(d["Delta_c"])
+    except (OSError, KeyError, ValueError, EOFError, zipfile.BadZipFile):
+        return 0.0, 0, 0.0              # not written yet, or caught half-written
+    if len(D) < 2:
+        return 0.02, len(D), float(D[-1]) if len(D) else 0.0
+    Dmax = spec["load"]["Dmax"]
+    if not (Dc > 0 and Dmax > 0.5 * Dc):
+        return 0.0, len(D), float(D[-1])
+    frac = np.log(D[-1] / (0.5 * Dc)) / np.log(Dmax / (0.5 * Dc))
+    return float(np.clip(frac, 0, 1)), len(D), float(D[-1])
 
 
-def analyse_run(name, eps_y=0.02):
-    """Stress-strain plot (stress_strain.png) and stretchability of a finished run."""
+def analyse_run(name: str, eps_y: float = 0.02) -> dict[str, Any]:
+    """Stress-strain plot (stress_strain.png) and stretchability of a finished run.
+    eps_y: yield strain of the material (> 0)."""
+    if not eps_y > 0:
+        raise ValueError(f"the yield strain eps_y must be positive, not {eps_y}")
     _, _, C = _scripts()
     import matplotlib
     matplotlib.use("Agg")
@@ -214,7 +238,7 @@ def analyse_run(name, eps_y=0.02):
                 plot=rel(out))
 
 
-def finish_run(name, res):
+def finish_run(name: str, res: Summary) -> Summary:
     """Render the GIF and the analysis of a finished simulation; adds them to res."""
     _, make_gif, _ = _scripts()
     d = RUNS / name
@@ -235,7 +259,7 @@ def finish_run(name, res):
 SETTINGS = ("sheet", "material", "mesh", "boundary")      # with the load, what decides a result
 
 
-def design_key(spec):
+def design_key(spec: Spec) -> str:
     """Geometry key of a spec's pattern on its sheet (kirismiles.geometry_key):
     the same for any two specs that cut the same sheet, however written."""
     from kirigami import kirismiles
@@ -243,8 +267,8 @@ def design_key(spec):
     return kirismiles.geometry_key(S.pattern(spec), spec["sheet"]["L"], spec["sheet"]["W"])
 
 
-def _settings(spec):
-    out = {k: spec.get(k) for k in SETTINGS}
+def _settings(spec: Spec) -> dict[str, Any]:
+    out: dict[str, Any] = {k: spec.get(k) for k in SETTINGS}
     load = spec.get("load", {})
     out["load"] = {k: load.get(k) for k in ("Dmax", "steps", "stop_local_strain")}
     if load.get("spacing", "geometric") != "geometric":       # older runs have no spacing key
@@ -254,7 +278,7 @@ def _settings(spec):
     return json.loads(json.dumps(out))                    # tuples and lists compare equal
 
 
-def _run_key(d):
+def _run_key(d: Path) -> str:
     """The geometry key of a stored run, computed once and kept beside it."""
     from kirigami import spec as S
     f = d / "geometry_key.txt"
@@ -268,13 +292,14 @@ def _run_key(d):
     return key
 
 
-def find_runs(spec):
+def find_runs(spec: Spec) -> list[dict[str, Any]]:
     """Stored simulations of the same design as `spec` (same geometry key),
     newest first. Each entry says whether the run completed and whether it
     used the same sheet, material, mesh, boundary and load as `spec`, in which
     case its result can stand for a new solve."""
     from kirigami import spec as S
-    key, want, out = design_key(spec), _settings(spec), []
+    key, want = design_key(spec), _settings(spec)
+    out: list[dict[str, Any]] = []
     dirs = [d for d in RUNS.glob("*") if (d / "spec.json").exists() and (d / "summary.json").exists()]
     for d in sorted(dirs, key=lambda d: d.stat().st_mtime, reverse=True):
         try:
@@ -282,7 +307,7 @@ def find_runs(spec):
                 continue
             sp = S.load(d / "spec.json")
             summ = json.loads((d / "summary.json").read_text())
-        except Exception:                                 # an unreadable or outdated record
+        except (OSError, ValueError, KeyError, TypeError):      # an unreadable or outdated record
             continue
         if summ.get("analysis") != "simulate":
             continue
@@ -297,11 +322,12 @@ def find_runs(spec):
 
 # ------------------------------------------------------------------- the queue
 
-def safe_name(name):
+def safe_name(name: str | None) -> str:
+    """A run folder name: letters, digits, _ and -, at most 40 characters."""
     return re.sub(r"[^A-Za-z0-9_-]+", "_", name or "design").strip("_")[:40] or "design"
 
 
-def unique_name(name):
+def unique_name(name: str | None) -> str:
     """name_<MMDD_HHMMSS>, with a suffix if that run folder already exists."""
     base = f"{safe_name(name)}_{time.strftime('%m%d_%H%M%S')}"
     out, k = base, 1
@@ -311,7 +337,7 @@ def unique_name(name):
     return out
 
 
-def _save(job):
+def _save(job: Job) -> None:
     d = RUNS / job["name"]
     d.mkdir(parents=True, exist_ok=True)
     tmp = d / f"job.{uuid.uuid4().hex[:6]}.tmp"         # one per write: threads may save at once
@@ -319,7 +345,7 @@ def _save(job):
     os.replace(tmp, d / "job.json")
 
 
-def _find(job_id):
+def _find(job_id: str | None) -> Job | None:
     if not re.fullmatch(r"[0-9a-f]{8}", job_id or ""):
         return None
     for f in RUNS.glob("*/job.json"):
@@ -335,14 +361,18 @@ def _find(job_id):
 class Runner:
     """A job queue served by one worker thread in this process."""
 
-    def __init__(self, label="jobs"):
+    def __init__(self, label: str = "jobs") -> None:
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", label):
+            raise ValueError(f"the label names containers: letters, digits, _ and - only, not {label!r}")
         self.label = label
-        self.jobs, self.q, self.mu = {}, queue.Queue(), threading.Lock()
+        self.jobs: dict[str, Job] = {}
+        self.q: queue.Queue[str] = queue.Queue()
+        self.mu = threading.Lock()
         threading.Thread(target=self._work, daemon=True, name=f"{label}-worker").start()
         threading.Thread(target=self._heartbeat, daemon=True, name=f"{label}-beat").start()
 
     # -- public
-    def submit(self, spec, unique=True):
+    def submit(self, spec: Spec, unique: bool = True) -> Job:
         """Queue a full simulation. The spec is saved with the job; its name
         gets a timestamp unless unique=False."""
         spec = dict(spec)
@@ -360,7 +390,7 @@ class Runner:
         self.q.put(jid)
         return self._public(job)
 
-    def get(self, job_id):
+    def get(self, job_id: str) -> Job | None:
         """The job's current state, from this process or from disk."""
         with self.mu:
             job = self.jobs.get(job_id)
@@ -369,7 +399,8 @@ class Runner:
         rec = _find(job_id)
         return None if rec is None else self._reconcile(rec)
 
-    def cancel(self, job_id):
+    def cancel(self, job_id: str) -> Job | None:
+        """Cancel a queued or running job (stops its container); None if there is no such job."""
         with self.mu:
             job = self.jobs.get(job_id)
         if job is None:
@@ -384,9 +415,11 @@ class Runner:
             _save(job)
         return self._public(job)
 
-    def list(self, limit=20):
-        """Recent jobs from every process, newest first."""
-        recs = []
+    def list(self, limit: int = 20) -> list[Job]:
+        """Recent jobs from every process, newest first (at most limit, >= 1)."""
+        if limit < 1:
+            raise ValueError(f"limit must be at least 1, not {limit}")
+        recs: list[Job] = []
         for f in RUNS.glob("*/job.json"):
             try:
                 recs.append(json.loads(f.read_text()))
@@ -397,10 +430,10 @@ class Runner:
 
     # -- internals
     @staticmethod
-    def _public(job):
+    def _public(job: Job) -> Job:
         return {k: v for k, v in job.items() if k not in ("spec", "beat")}
 
-    def _heartbeat(self):
+    def _heartbeat(self) -> None:
         """Refresh the records of this process's active jobs, so other
         processes can tell them from orphans."""
         while True:
@@ -422,7 +455,7 @@ class Runner:
                 job["beat"] = time.time()
                 _save(job)
 
-    def _reconcile(self, rec):
+    def _reconcile(self, rec: Job) -> Job:
         """Bring a record left by another process up to date."""
         if rec["state"] not in ACTIVE or time.time() - rec.get("beat", 0) < STALE_AFTER:
             return self._public(rec)
@@ -440,7 +473,7 @@ class Runner:
             res = dict(ok=True, **json.loads(summary.read_text()))
             try:
                 finish_run(rec["name"], res)
-            except Exception as e:
+            except Exception as e:      # the run itself is done; report a failed GIF or plot with it
                 res["analysis_error"] = f"{type(e).__name__}: {e}"
             rec.update(state="done", message=res.get("status", "completed"), progress=1.0,
                        result=res, finished=time.time())
@@ -452,7 +485,7 @@ class Runner:
         _save(rec)
         return self._public(rec)
 
-    def _work(self):
+    def _work(self) -> None:
         while True:
             jid = self.q.get()
             job = self.jobs[jid]
@@ -473,7 +506,7 @@ class Runner:
                 if job["state"] == "cancelled":
                     continue
                 self._solve(job)
-            except Exception as e:
+            except Exception as e:      # last resort: the worker thread must survive any job's failure
                 job.update(state="failed", message=f"{type(e).__name__}: {e}",
                            result=dict(trace=traceback.format_exc()[-2000:]),
                            finished=time.time())
@@ -482,14 +515,14 @@ class Runner:
                 job["beat"] = time.time()
                 _save(job)
 
-    def _solve(self, job):
+    def _solve(self, job: Job) -> None:
         cli, _, _ = _scripts()
         spec = job["spec"]
         job.update(state="running", message="meshing and solving", started=time.time())
         _save(job)
         done = threading.Event()
 
-        def watch():
+        def watch() -> None:
             while not done.is_set():
                 job["progress"], job["steps"], job["delta"] = run_progress(spec["name"], spec)
                 time.sleep(3)

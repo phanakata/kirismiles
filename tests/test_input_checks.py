@@ -89,3 +89,44 @@ def test_database_records_refuse_impossible_sizes():
         Cylinder(circumference=0)
     with pytest.raises(ValidationError):
         Cylinder(circumference=100, n_around=0)
+
+
+# ---------------------------------------------------------------- run engine and database
+
+def test_run_progress_survives_missing_or_half_written_history(tmp_path, monkeypatch):
+    from kirigami import jobs
+    monkeypatch.setattr(jobs, "RUNS", tmp_path)
+    spec = S.load(GOOD)
+    assert jobs.run_progress("none", spec) == (0.0, 0, 0.0)              # not written yet
+    (tmp_path / "half").mkdir()
+    (tmp_path / "half" / "history.npz").write_bytes(b"PK\x03\x04 truncated")
+    assert jobs.run_progress("half", spec) == (0.0, 0, 0.0)              # caught mid-write
+
+
+def test_run_engine_rejects_bad_arguments():
+    from kirigami import jobs
+    with pytest.raises(ValueError, match="Runner.submit"):
+        jobs.run_now("simulate", S.load(GOOD))
+    with pytest.raises(ValueError, match="label"):
+        jobs.Runner("web app")                                          # names docker containers
+    with pytest.raises(ValueError, match="eps_y"):
+        jobs.analyse_run("x", eps_y=0)
+    assert jobs.safe_name("my design!") == "my_design" and jobs.safe_name(None) == "design"
+
+
+def test_database_records_check_counts_and_hashes():
+    pytest.importorskip("pydantic")
+    from pydantic import ValidationError
+
+    from kirigami import kdb
+    assert kdb.Loading(steps=40).steps == 40
+    with pytest.raises(ValidationError):
+        kdb.Loading(steps=0)
+    with pytest.raises(ValidationError):
+        kdb.Method(seconds=-1.0)
+    with pytest.raises(ValidationError):
+        kdb.ArrayInfo(shape=[3, -1], dtype="float64")
+    with pytest.raises(ValidationError):
+        kdb.DataRef(path="a.npz", sha256="not-a-hash")
+    with pytest.raises(ValueError, match="design ID"):
+        kdb.Design.make_id()

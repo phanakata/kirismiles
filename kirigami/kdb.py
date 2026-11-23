@@ -25,17 +25,22 @@ rebuilding the database from the same sources gives the same IDs.
 
   python -m kirigami.kdb schema [out_dir]     write the JSON Schema of each record
 """
+from __future__ import annotations
+
 import hashlib
 import json
-from typing import Literal, Optional
+import os
+from typing import Annotated, Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 SCHEMA_VERSION = "kdb/0.2"     # 0.2: raw data as DataRef (path, sha256, arrays); 0.1 paths still read
 
 
-def hid(prefix, obj, n=12):
-    """Content hash ID: prefix + first n hex digits of sha1(canonical JSON)."""
+def hid(prefix: str, obj: Any, n: int = 12) -> str:
+    """Content hash ID: prefix + first n hex digits of sha1(canonical JSON), 1 <= n <= 40."""
+    if not 1 <= n <= 40:
+        raise ValueError(f"an ID has 1 to 40 hex digits, not {n}")
     s = json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
     return f"{prefix}-{hashlib.sha1(s.encode()).hexdigest()[:n]}"
 
@@ -75,7 +80,7 @@ class Material(_Rec):
     references: list[Reference] = []
 
     @staticmethod
-    def make_id(E_MPa, nu, model, density=None):
+    def make_id(E_MPa: float, nu: float, model: str, density: Any = None) -> str:
         return hid("km", {"E": round(float(E_MPa), 6), "nu": round(float(nu), 6),
                           "model": model, "rho": density})
 
@@ -102,7 +107,11 @@ class Design(_Rec):
     references: list[Reference] = []
 
     @staticmethod
-    def make_id(kirismiles=None, generator=None, geometry_key=None):
+    def make_id(kirismiles: str | None = None, generator: dict[str, Any] | None = None,
+                geometry_key: str | None = None) -> str:
+        """From the string if there is one, else the generator, else the geometry key."""
+        if not (kirismiles or generator is not None or geometry_key):
+            raise ValueError("a design ID needs a KiriSMILES string, a generator or a geometry key")
         if kirismiles:
             return hid("kd", {"kirismiles": kirismiles})
         if generator is not None:
@@ -144,7 +153,8 @@ class Specimen(_Rec):
     dimensionless: dict[str, float] = {}
 
     @staticmethod
-    def make_id(design_id, unit, geometry, thickness, material_id, kerf):
+    def make_id(design_id: str, unit: str, geometry: dict[str, Any], thickness: float, material_id: str,
+                kerf: float | None) -> str:
         return hid("ks", {"d": design_id, "u": unit, "g": geometry, "h": round(float(thickness), 6),
                           "m": material_id, "k": kerf})
 
@@ -157,7 +167,7 @@ class Loading(BaseModel):
     in_plane: bool = False
     max_displacement: Optional[float] = None
     max_strain: Optional[float] = None
-    steps: Optional[int] = None
+    steps: Optional[int] = Field(None, ge=1)
 
 
 class Method(BaseModel):
@@ -169,7 +179,7 @@ class Method(BaseModel):
     mesh: Optional[dict] = None
     code_version: Optional[str] = None
     image: Optional[str] = None
-    seconds: Optional[float] = None
+    seconds: Optional[float] = Field(None, ge=0)
 
 
 class Provenance(BaseModel):
@@ -183,7 +193,7 @@ class Provenance(BaseModel):
 
 class ArrayInfo(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    shape: list[int]
+    shape: list[Annotated[int, Field(ge=0)]]
     dtype: str
     description: Optional[str] = None
 
@@ -197,8 +207,8 @@ class DataRef(BaseModel):
     key: Optional[str] = Field(None, description="entry inside the file, e.g. one curve of a "
                                                  "JSON file holding several")
     format: Optional[str] = Field(None, description="npz, json, csv, gif, png, ...")
-    bytes: Optional[int] = None
-    sha256: Optional[str] = None
+    bytes: Optional[int] = Field(None, ge=0)
+    sha256: Optional[str] = Field(None, pattern=r"^[0-9a-f]{64}$")
     arrays: dict[str, ArrayInfo] = Field({}, description="npz: name -> shape, dtype, meaning")
     description: Optional[str] = None
     url: Optional[str] = Field(None, description="archived copy (e.g. a Zenodo DOI or a "
@@ -206,14 +216,16 @@ class DataRef(BaseModel):
     available: bool = Field(True, description="False when the file was missing at build time")
 
 
-def data_ref(path, root=".", key=None, description=None, array_descriptions=None, url=None):
+def data_ref(path: str | os.PathLike[str], root: str | os.PathLike[str] = ".", key: str | None = None,
+             description: str | None = None, array_descriptions: dict[str, str] | None = None,
+             url: str | None = None) -> DataRef:
     """DataRef for a file: size, sha256 and, for npz, the name, shape and dtype of every
     array (read from the .npy headers, without loading the arrays)."""
     import zipfile
     from pathlib import Path
     import numpy as np
     f = Path(root) / path
-    ref = dict(path=str(path).replace("\\", "/"), key=key, format=f.suffix.lstrip(".") or None,
+    ref: dict[str, Any] = dict(path=str(path).replace("\\", "/"), key=key, format=f.suffix.lstrip(".") or None,
                description=description, url=url)
     if not f.is_file():
         return DataRef(**ref, available=False)
@@ -224,7 +236,7 @@ def data_ref(path, root=".", key=None, description=None, array_descriptions=None
     ref.update(bytes=f.stat().st_size, sha256=h.hexdigest())
     if f.suffix == ".npz":
         desc = array_descriptions or {}
-        arrays = {}
+        arrays: dict[str, ArrayInfo] = {}
         with zipfile.ZipFile(f) as z:
             for name in z.namelist():
                 with z.open(name) as fh:
@@ -256,10 +268,10 @@ class Result(_Rec):
 
     @field_validator("data", mode="before")
     @classmethod
-    def _paths_to_refs(cls, v):
+    def _paths_to_refs(cls, v: Any) -> Any:
         """Records of kdb/0.1 gave each raw-data file as a bare path ('file#key'
         for an entry inside it)."""
-        out = {}
+        out: dict[str, Any] = {}
         for name, r in (v or {}).items():
             if isinstance(r, str):
                 p, _, k = r.partition("#")
@@ -268,10 +280,11 @@ class Result(_Rec):
         return out
 
 
-RECORDS = {"material": Material, "design": Design, "specimen": Specimen, "result": Result}
+RECORDS: dict[str, type[BaseModel]] = {"material": Material, "design": Design, "specimen": Specimen, "result": Result}
 
 
-def write_schemas(out="schemas/kdb"):
+def write_schemas(out: str | os.PathLike[str] = "schemas/kdb") -> list[str]:
+    """Write the JSON Schema of each record to out/<record>.schema.json; returns the paths."""
     from pathlib import Path
     p = Path(out)
     p.mkdir(parents=True, exist_ok=True)
