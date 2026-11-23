@@ -16,7 +16,6 @@ import gc
 import os
 import time
 
-import numpy as np
 
 from kirigami.fvk import Material, Sheet
 from kirigami.geometry import single_cut

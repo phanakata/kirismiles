@@ -1,5 +1,7 @@
 # 切り😊 KiriSMILES
 
+[![tests](https://github.com/phanakata/kirismiles/actions/workflows/tests.yml/badge.svg)](https://github.com/phanakata/kirismiles/actions/workflows/tests.yml)
+
 **An open-source effort to lay down the infrastructure for kirigami informatics.**
 
 > **KiriSMILES** = **Kiri**gami **S**implified **M**etamaterial-**I**nput **L**ine-**E**ntry **S**ystem
@@ -87,13 +89,14 @@ python -m venv .venv
 source .venv/bin/activate              # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pip install pytest "mcp>=2.3,<3"       # optional: tests and the MCP server
+pip install pydantic ruff mypy         # optional: database records, lint and type checks
 docker pull dolfinx/dolfinx:v0.9.0     # optional: otherwise the first simulation pulls it
 ```
 
 ### Getting started
 
 ```bash
-python -m pytest -q tests/                                     # run the tests
+python -m pytest -q                                            # run the tests (ruff check . and mypy as in CI)
 python scripts/kirigami_cli.py validate specs/alternating.json # check a design
 python scripts/kirigami_cli.py simulate specs/alternating.json # run it (minutes; needs Docker)
 python webapp/server.py                                        # or use the web app, at localhost:8000

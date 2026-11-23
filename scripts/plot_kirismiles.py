@@ -174,8 +174,8 @@ def fig_symmetry():
         (f"({s}){{i}}", "inversion (x, y) -> (-x, -y)"),
         (f"({s}){{mx}}{{my}}", "both mirrors: 4 copies"),
         (f"({s}){{mx}}{{i}}", "{mx} then {i}: same 4 copies"),
-        (f"(C(-4,4;4,4;4,14)){{t20x3}}", "3 copies 20 mm apart"),
-        (f"((C(-4,4;4,4;4,14)){{my}}){{t20x3}}", "groups nest: {my} then {t}"),
+        ("(C(-4,4;4,4;4,14)){t20x3}", "3 copies 20 mm apart"),
+        ("((C(-4,4;4,4;4,14)){my}){t20x3}", "groups nest: {my} then {t}"),
     ]
     seeds = [s] * 6 + ["C(-24,4;-16,4;-16,14)"] * 2
     fig, axs = grid(2, 4, 3.0, 2.0)

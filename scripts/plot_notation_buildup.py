@@ -6,7 +6,6 @@ Every panel is drawn by the parser from the string above it. Orange is the
 piece that was written, blue the copies an operation or the lattice adds;
 orange dots are lattice points.
 """
-import matplotlib.pyplot as plt
 
 import plot_kirismiles as pk
 from kirigami import kirismiles as ks

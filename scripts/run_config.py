@@ -10,7 +10,7 @@ import time
 
 import numpy as np
 from dolfinx import fem, geometry, plot
-from mpi4py import MPI
+from mpi4py import MPI  # noqa: F401  (MPI is initialised before dolfinx objects are made)
 
 from kirigami import geometry as geo
 from kirigami.fvk import Material

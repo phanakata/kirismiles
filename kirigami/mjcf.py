@@ -58,7 +58,7 @@ def shell_inputs(E: float, h: float, nu: float = 0.0, mf: float = MEMBRANE_FACTO
 def ghost_layer(x: np.ndarray, cells: np.ndarray, L: float, delta: float, tol: float = 1e-6):
     """Ghost nodes one strip outside x = 0 and x = L, and the triangles joining them to the boundary edges.
     Returns (x_all, cells_all, side) where side is -1 at x <= 0 (fixed), +1 at x >= L (grip), 0 free."""
-    edges = {}
+    edges: dict[tuple[int, int], int] = {}
     for t in cells:
         for a, b in ((t[0], t[1]), (t[1], t[2]), (t[2], t[0])):
             key = (min(a, b), max(a, b))
@@ -88,7 +88,7 @@ def ghost_layer(x: np.ndarray, cells: np.ndarray, L: float, delta: float, tol: f
 
 def mjcf(x: np.ndarray, cells: np.ndarray, L: float, *, E: float = 3500.0, h: float = 0.127, rho: float = 1e-6,
          dt: float = 1e-6, damping: float = 0.0, ghost: float | None = None, w0: np.ndarray | None = None,
-         armature: float = 0.0, mass_damping: float = 0.0, nu: float = 0.0,
+         armature: float | np.ndarray = 0.0, mass_damping: float = 0.0, nu: float = 0.0,
          mf: float = MEMBRANE_FACTOR, bf: float = BENDING_FACTOR) -> tuple[str, dict]:
     """MJCF string of the sheet and an info dict (node bookkeeping for reading results back).
 
@@ -130,7 +130,8 @@ def mjcf(x: np.ndarray, cells: np.ndarray, L: float, *, E: float = 3500.0, h: fl
             vpos.append(q - [L, 0, 0])
         else:
             m_i = mass[i]
-            arm = (armature[i] if np.ndim(armature) else (armature * m_i, armature * m_i, 0.0))
+            arm = (armature[i] if isinstance(armature, np.ndarray)           # per node (x, y, z), or
+                   else (armature * m_i, armature * m_i, 0.0))                # a multiple of the mass in x, y
             joints = "".join(f'<joint name="v{i}{a}" type="slide" axis="{ax}" armature="{arm[k]:.6g}"/>'
                              for k, (a, ax) in enumerate((("x", "1 0 0"), ("y", "0 1 0"), ("z", "0 0 1"))))
             bodies.append(f'<body name="v{i}" pos="{q[0]:.8g} {q[1]:.8g} {q[2]:.8g}">'
@@ -191,7 +192,7 @@ def colouring(info) -> np.ndarray:
     """A colour per mesh node such that nodes of one colour are more than two elements apart (no shared element or
     bending stencil), so perturbing them together gives each one's own stiffness diagonal. -1 for clamped nodes."""
     n = len(info["x"])
-    nbr = [set() for _ in range(n)]
+    nbr: list[set[int]] = [set() for _ in range(n)]
     for t in info["cells"]:
         for a in t:
             nbr[a].update(int(b) for b in t)

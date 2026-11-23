@@ -8,7 +8,6 @@ Motif on a square (x, y, s), centre (X, Y):
          edges, and horizontal arms from each side edge to g short of the centre;
   beta:  the same rotated by 90 degrees.
 """
-import itertools
 import numpy as np
 
 G = 1e-3          # hinge gap (rigid-unit limit: hinges are points)

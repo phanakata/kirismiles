@@ -2,7 +2,7 @@
 at a symmetric, slightly opened configuration."""
 import numpy as np
 from fractal import segments, covered, G
-from generic import residual_jac, R
+from generic import residual_jac
 
 def linkage_full(word):
     S, segs = segments(word); S = int(S)
