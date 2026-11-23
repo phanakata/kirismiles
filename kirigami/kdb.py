@@ -114,17 +114,17 @@ class Design(_Rec):
 class FlatSheet(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["flat"] = "flat"
-    L: float = Field(description="length along the pull (x)")
-    W: float = Field(description="width (y)")
+    L: float = Field(gt=0, description="length along the pull (x)")
+    W: float = Field(gt=0, description="width (y)")
 
 
 class Cylinder(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["cylinder"] = "cylinder"
-    circumference: float
-    length: Optional[float] = Field(None, description="None when not reported")
-    n_around: Optional[int] = Field(None, description="unit cells around the tube")
-    rows: Optional[int] = Field(None, description="unit cells along the tube")
+    circumference: float = Field(gt=0)
+    length: Optional[float] = Field(None, gt=0, description="None when not reported")
+    n_around: Optional[int] = Field(None, ge=1, description="unit cells around the tube")
+    rows: Optional[int] = Field(None, ge=1, description="unit cells along the tube")
     rolled_from_flat: bool = Field(True, description="natural shape flat (rolled sheet) "
                                                      "or curved (cut from tubing)")
 
@@ -134,10 +134,10 @@ class Specimen(_Rec):
     design_id: str
     unit: str = Field("mm", description="unit of every length of this specimen and its design")
     geometry: FlatSheet | Cylinder = Field(discriminator="type")
-    thickness: float
+    thickness: float = Field(gt=0)
     material_id: str
     kerf: Optional[float] = Field(
-        None, description="fabrication cut width, applied to every cut; None = zero-width cuts "
+        None, ge=0, description="fabrication cut width, applied to every cut; None = zero-width cuts "
                           "or not reported. Widths chosen as geometry stay in the string")
     geometry_key: Optional[str] = Field(None, description="kirismiles.geometry_key of the "
                                                           "finite pattern on this sheet")

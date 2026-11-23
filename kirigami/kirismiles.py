@@ -53,37 +53,46 @@ against its generator in kirigami/geometry.py):
   yaw          X(-30,b+4;30,b+4;30,t-4;-30,t-4);+E(14,8,20);
                (+B(-24,t-2;-24,2;-16,14;-2,4)w3;K30@-31.5t){i}            (L 150, W 60)
 """
+from __future__ import annotations
+
 import hashlib
 import re
 from dataclasses import dataclass, replace
+from typing import Callable, Literal, Union
 
 import numpy as np
 
 from kirigami import geometry as geo
 from kirigami import grammar
+from kirigami._types import Pattern
 
 EXTEND = 1.0          # mm: a slot starting at an edge starts this far outside it
 N_ELLIPSE = 120       # samples, as in geometry.yaw_pattern
 SYMS = ("mx", "my", "i")
 
 
-def _n(x):
+def _n(x: float) -> str:
     return f"{round(float(x), 3) + 0.0:g}"
 
 
 @dataclass(frozen=True)
 class Y:
     """A y coordinate: offset v from the centre line ('c') or an edge ('b', 't')."""
-    ref: str
+    ref: Literal["c", "b", "t"]
     v: float
 
-    def at(self, W):                       # from the centre line
+    def __post_init__(self) -> None:
+        if self.ref not in ("c", "b", "t"):
+            raise ValueError(f"a y coordinate is measured from 'c', 'b' or 't', not {self.ref!r}")
+
+    def at(self, W: float) -> float:       # from the centre line
         return {"c": 0.0, "b": -W / 2, "t": W / 2}[self.ref] + self.v
 
-    def flip(self):
-        return Y({"c": "c", "b": "t", "t": "b"}[self.ref], -self.v)
+    def flip(self) -> Y:
+        other: dict[str, Literal["c", "b", "t"]] = {"c": "c", "b": "t", "t": "b"}
+        return Y(other[self.ref], -self.v)
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.ref == "c":
             return _n(self.v)
         return self.ref + ("" if self.v == 0 else ("+" if self.v > 0 else "-") + _n(abs(self.v)))
@@ -91,31 +100,31 @@ class Y:
 
 @dataclass(frozen=True)
 class Slit:
-    angle: int
-    length: float
+    angle: int                             # degrees from x, in [0, 180)
+    length: float                          # mm
     x: float
     y: Y
-    kerf: float = None
+    kerf: float | None = None              # slot width (mm); None for a zero-width cut
 
 
 @dataclass(frozen=True)
 class Cut:
-    pts: tuple
-    kerf: float = None
+    pts: tuple[tuple[float, Y], ...]       # polyline vertices (x, y)
+    kerf: float | None = None
 
 
 @dataclass(frozen=True)
 class Crack:
-    length: float
+    length: float                          # mm in from the edge
     x: float
-    edge: str
-    kerf: float = None
+    edge: Literal["b", "t"]
+    kerf: float | None = None
 
 
 @dataclass(frozen=True)
 class Region:                              # hole (X) or solid (+) polygon
     solid: bool
-    pts: tuple
+    pts: tuple[tuple[float, Y], ...]
 
 
 @dataclass(frozen=True)
@@ -129,20 +138,23 @@ class Ellipse:
 
 @dataclass(frozen=True)
 class Strip:                               # cubic Bezier of constant width
-    pts: tuple
+    pts: tuple[tuple[float, Y], ...]       # the four control points
     width: float
 
 
 @dataclass(frozen=True)
 class Group:
-    items: tuple
-    syms: tuple = ()
-    kerf: float = None
+    items: tuple[Item, ...]
+    syms: tuple[str, ...] = ()             # 'mx', 'my', 'i' or 't<p>x<n>', applied in order
+    kerf: float | None = None
+
+
+Item = Union[Slit, Cut, Crack, Region, Ellipse, Strip, Group]     # one free-form piece
 
 
 @dataclass(frozen=True)
 class FreeForm:
-    items: tuple
+    items: tuple[Item, ...]
 
 
 @dataclass(frozen=True)
@@ -150,7 +162,10 @@ class Lattice:
     """A lattice (grammar.Design: cell, shift, offset, slits, columns, trim)
     whose motif also holds free-form pieces, in mm from the lattice point."""
     base: grammar.Design
-    extra: tuple
+    extra: tuple[Item, ...]
+
+
+Parsed = Union[grammar.Design, Lattice, FreeForm]                # what parse() returns
 
 
 # ------------------------------------------------------------------ parsing
@@ -352,7 +367,7 @@ def _canonical_lattice(lat):
     return Lattice(c, tuple(_shift(it, 0.0, -dy) for it in lat.extra))
 
 
-def parse(code):
+def parse(code: str) -> Parsed:
     """A KiriSMILES string -> grammar.Design (lattice of slits), Lattice
     (lattice with free-form pieces) or FreeForm."""
     code = re.sub(r"\s+", "", code)
@@ -396,7 +411,7 @@ def _seq(items):
     return ";".join(sorted({_item(it) for it in items}))
 
 
-def encode(design):
+def encode(design: Parsed) -> str:
     """Canonical string of a parsed design (any form)."""
     if isinstance(design, grammar.Design):
         return grammar.encode(design)
@@ -411,7 +426,8 @@ def encode(design):
     return _seq(design.items)
 
 
-def canonical(code):
+def canonical(code: str) -> str:
+    """The canonical form of a KiriSMILES string (raises ValueError if it does not parse)."""
     return encode(parse(code))
 
 
@@ -496,12 +512,12 @@ def _slots(pts, kerf):
     return [geo._slot(p, q, kerf) for p, q in zip(pts[:-1], pts[1:])]
 
 
-def free_pattern(ff, L, W):
+def free_pattern(ff: FreeForm, L: float, W: float) -> Pattern:
     """The cuts, holes and solids of a FreeForm on an L x W sheet."""
     return _render(_flatten(ff.items), lambda x: L / 2 + x, lambda y: W / 2 + y.at(W), W)
 
 
-def _render(prims, X, Yc, W):
+def _render(prims: list[Item], X: Callable[[float], float], Yc: Callable[[Y], float], W: float) -> Pattern:
     """Primitives -> pattern dict; X and Yc map item coordinates to the sheet."""
     pat = geo.empty_pattern()
     for it in prims:
@@ -525,8 +541,8 @@ def _render(prims, X, Yc, W):
             pat["solids" if it.solid else "holes"].append([(X(x), Yc(y)) for x, y in it.pts])
         elif isinstance(it, Ellipse):
             th = np.radians(it.angle)
-            s = np.linspace(0, 2 * np.pi, N_ELLIPSE, endpoint=False)
-            P = np.column_stack([it.a * np.cos(s), it.b * np.sin(s)]) @ np.array(
+            phi = np.linspace(0, 2 * np.pi, N_ELLIPSE, endpoint=False)
+            P = np.column_stack([it.a * np.cos(phi), it.b * np.sin(phi)]) @ np.array(
                 [[np.cos(th), np.sin(th)], [-np.sin(th), np.cos(th)]]) + [X(it.x), Yc(it.y)]
             pat["solids"].append([tuple(p) for p in P])
         elif isinstance(it, Strip):
@@ -577,7 +593,7 @@ def _clip_polygon(pts, W):
     return pts
 
 
-def lattice_pattern(lat, L, W):
+def lattice_pattern(lat: Lattice, L: float, W: float) -> Pattern:
     """Cuts of a Lattice: the slits as in grammar.pattern, plus one copy of the
     free pieces at every lattice point of columns 0 .. n-1 (all rows that reach
     the sheet). As for slits, cuts are clipped at the free edges, pieces shorter
@@ -601,7 +617,7 @@ def lattice_pattern(lat, L, W):
                     a = np.asarray(piece)
                     on_edge = any(np.abs(a[:, 1] - e).max() < 1e-6 for e in (0, W))
                     if np.linalg.norm(np.diff(a, axis=0), axis=1).sum() >= d.trim and not on_edge:
-                        pat["cuts"].append([tuple(map(float, p)) for p in piece])
+                        pat["cuts"].append([(float(p[0]), float(p[1])) for p in piece])
             for h in g["holes"]:
                 a = np.asarray(h)
                 if a[:, 1].max() > 0 and a[:, 1].min() < W:
@@ -613,7 +629,7 @@ def lattice_pattern(lat, L, W):
     return pat
 
 
-def pattern(code, L, W):
+def pattern(code: str | Parsed, L: float, W: float) -> Pattern:
     """The cuts / holes / solids of any KiriSMILES string (or parsed design)."""
     d = parse(code) if isinstance(code, str) else code
     if isinstance(d, grammar.Design):
@@ -623,7 +639,7 @@ def pattern(code, L, W):
     return free_pattern(d, L, W)
 
 
-def spec_pattern(L, W, code):
+def spec_pattern(L: float, W: float, code: str) -> Pattern:
     """Generator entry for kirigami/spec.py: {"generator": "kirismiles", "params": {"code": ...}}."""
     return pattern(code, L, W)
 
@@ -661,7 +677,7 @@ def _poly_key(pts, closed):
     return min(cands)
 
 
-def geometry_key(pat, L, W, nd=2):
+def geometry_key(pat: Pattern | str, L: float, W: float, nd: int = 2) -> str:
     """Hash of a pattern's geometry: independent of how it was written, of the
     order of pieces and points, and of the sheet's two mirror symmetries. Also
     accepts a KiriSMILES string."""
@@ -738,7 +754,8 @@ def _closest(p1, q1, p2, q2, n=200):
     return (A[i] + B[j]) / 2
 
 
-def check(code, L, W, min_gap=1.0, h=None):
+def check(code: str | Parsed | Pattern, L: float, W: float, min_gap: float = 1.0,
+          h: float | None = None) -> list[str]:
     """Problems that make a design impossible to cut or to clamp, as readable
     messages; an empty list means the design is valid. Accepts a string, a
     parsed design or a pattern dict.
@@ -751,12 +768,16 @@ def check(code, L, W, min_gap=1.0, h=None):
       - the clamped ends are no longer joined through material
       - a piece of material is cut loose from both clamped ends
     """
+    if not (L > 0 and W > 0):
+        return [f"the sheet needs L > 0 and W > 0 (got L = {L}, W = {W})"]
+    if not min_gap > 0 or (h is not None and not h > 0):
+        return [f"min_gap and h must be positive (got min_gap = {min_gap}, h = {h})"]
     try:
         pat = code if isinstance(code, dict) else pattern(code, L, W)
     except ValueError as e:
         return [str(e)]
     tol = 1e-6
-    errs = []
+    errs: list[str] = []
     for kind in ("cuts", "holes", "solids"):
         for i, g in enumerate(pat.get(kind, ())):
             a = np.asarray(g, float)
@@ -777,7 +798,7 @@ def check(code, L, W, min_gap=1.0, h=None):
         P = np.array([s[1] for s in segs])
         Q = np.array([s[2] for s in segs])
         lo, hi = np.minimum(P, Q), np.maximum(P, Q)
-        near = {}
+        near: dict[tuple[tuple[str, int], tuple[str, int]], tuple[float, int, int]] = {}
         for i0 in range(0, len(segs), 256):            # blocks keep memory small
             a = np.arange(i0, min(i0 + 256, len(segs)))[:, None]
             b = np.arange(len(segs))[None, :]
@@ -823,12 +844,12 @@ def check(code, L, W, min_gap=1.0, h=None):
         errs.append("the clamped ends are not joined: the pattern cuts the sheet in two")
     area = ndimage.sum(np.ones_like(lab), lab, index=np.arange(1, n + 1)) * h * h
     loose = [k + 1 for k in range(n) if k + 1 not in left | right and area[k] >= LOOSE_AREA]
-    for k in loose:
-        jj, ii = np.nonzero(lab == k)
-        errs.append(f"a piece of {area[k - 1]:.1f} mm^2 near ({ii.mean() * h:.1f}, "
+    for lbl in loose:
+        jj, ii = np.nonzero(lab == lbl)
+        errs.append(f"a piece of {area[lbl - 1]:.1f} mm^2 near ({ii.mean() * h:.1f}, "
                     f"{jj.mean() * h:.1f}) is cut loose from both clamped ends")
     return errs
 
 
-def is_valid(code, L, W, min_gap=1.0):
+def is_valid(code: str | Parsed | Pattern, L: float, W: float, min_gap: float = 1.0) -> bool:
     return not check(code, L, W, min_gap)

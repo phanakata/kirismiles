@@ -9,14 +9,24 @@ Each prints a JSON summary on the last line of stdout and writes its outputs
 to results/runs/<name>/. scripts/kirigami_cli.py wraps these for use from the
 host, e.g. by agents.
 """
+from __future__ import annotations
+
 import json
+import os
 import sys
 import time
+from collections.abc import Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from kirigami import spec as S
+from kirigami._types import Spec, Summary
+
+if TYPE_CHECKING:                                  # the solver modules need FEniCSx
+    from kirigami.fvk import Sheet
+    from kirigami.shell import ShellSheet
 
 RUNS = Path("results/runs")
 
@@ -25,30 +35,42 @@ class _Stop(Exception):
     """Raised by an observer to end the load ramp early on purpose."""
 
 
-def _sheet(spec, shell=False):
+def _mesh_and_material(spec: Spec) -> tuple[Any, Any]:
     from kirigami import geometry as geo
-    from kirigami.fvk import Material, Sheet
-    from kirigami.shell import ShellSheet
+    from kirigami.fvk import Material
     L, W = spec["sheet"]["L"], spec["sheet"]["W"]
     m = spec["mesh"]
     msh = geo.mesh_pattern(L, W, S.pattern(spec), h_cut=m["h_cut"], h_far=m["h_far"],
                            refine_dist=tuple(m["refine_dist"]), h_hinge=m.get("h_hinge"),
                            hinge_gap=m.get("hinge_gap", 1.0))
-    mat = Material(**spec["material"])
-    if shell:
-        return ShellSheet(msh, L, mat, boundary=spec.get("boundary"))
-    return Sheet(msh, L, mat)
+    return msh, Material(**spec["material"])
 
 
-def _p1_mesh(msh):
+def _sheet(spec: Spec) -> Sheet:
+    """The flat sheet for the linear analyses (plane stress, linear buckling)."""
+    from kirigami.fvk import Sheet
+    msh, mat = _mesh_and_material(spec)
+    return Sheet(msh, spec["sheet"]["L"], mat)
+
+
+def _shell(spec: Spec) -> ShellSheet:
+    """The Kirchhoff-Love shell for the nonlinear post-buckling run."""
+    from kirigami.shell import ShellSheet
+    msh, mat = _mesh_and_material(spec)
+    return ShellSheet(msh, spec["sheet"]["L"], mat, boundary=spec.get("boundary"))
+
+
+def _p1_mesh(msh: Any) -> tuple[Any, np.ndarray, np.ndarray]:
     from dolfinx import fem, plot
     V1 = fem.functionspace(msh, ("Lagrange", 1, (3,)))
     cells, _, x = plot.vtk_mesh(V1)
     return V1, x[:, :2], cells.reshape(-1, 4)[:, 1:]
 
 
-def buckle(spec, nev=4):
+def buckle(spec: Spec, nev: int = 4) -> Summary:
     """Linear analysis: stiffness of the cut sheet and its first buckling loads."""
+    if nev < 1:
+        raise ValueError(f"nev (number of buckling modes) must be at least 1, not {nev}")
     from dolfinx import fem
     t0 = time.time()
     out = RUNS / spec["name"]
@@ -78,7 +100,7 @@ def buckle(spec, nev=4):
     return res
 
 
-def stiffness(spec):
+def stiffness(spec: Spec) -> Summary:
     """Linear in-plane stiffness F/Delta of the flat cut sheet (small strain, no buckling).
     The cheapest response the engine computes: one plane-stress solve."""
     t0 = time.time()
@@ -93,10 +115,10 @@ def stiffness(spec):
     return res
 
 
-def stiffness_batch(paths):
+def stiffness_batch(paths: Iterable[str | os.PathLike[str]]) -> Summary:
     """stiffness() of several specs in one process, so the solver starts once.
     A spec that fails is reported (ok=False) without stopping the others."""
-    results = []
+    results: list[dict[str, Any]] = []
     for path in paths:
         try:
             spec = S.load(path)
@@ -108,7 +130,7 @@ def stiffness_batch(paths):
     return dict(analysis="stiffness_batch", results=results)
 
 
-def _pair_angles(probes, names):
+def _pair_angles(probes: np.ndarray, names: dict[str, tuple[float, float]]) -> dict[str, dict[str, list[float]]]:
     """For every probe pair 'X_a'/'X_b', the out-of-plane tilt and the in-plane
     turn of the segment a->b (degrees) at each step."""
     ref = {n: np.asarray(p, float) for n, p in names.items()}
@@ -126,7 +148,7 @@ def _pair_angles(probes, names):
     return out
 
 
-def simulate(spec):
+def simulate(spec: Spec) -> Summary:
     """Full nonlinear (Kirchhoff-Love shell) post-buckling under increasing Delta.
 
     Optional spec keys:
@@ -140,7 +162,7 @@ def simulate(spec):
     t0 = time.time()
     out = RUNS / spec["name"]
     out.mkdir(parents=True, exist_ok=True)
-    sh = _sheet(spec, shell=True)
+    sh = _shell(spec)
     msh, mat, L = sh.msh, sh.mat, spec["sheet"]["L"]
     bnd = sh.boundary
     # The linear stiffness and buckling estimate (which seeds the out-of-plane
@@ -172,7 +194,7 @@ def simulate(spec):
         pcells = [coll.links(i)[0] for i in range(len(pts))]
     V1, x, cells = _p1_mesh(msh)
     u1 = fem.Function(V1)
-    hist = dict(Delta=[], F=[], U=[], probes=[], uz_max=[], eloc=[])
+    hist: dict[str, list[Any]] = dict(Delta=[], F=[], U=[], probes=[], uz_max=[], eloc=[])
     tg = ST.triangle_geometry(x, cells)
     stop_at = spec["load"].get("stop_local_strain")
 
@@ -223,7 +245,7 @@ def simulate(spec):
     return summary
 
 
-def export_exact(spec):
+def export_exact(spec: Spec) -> Summary:
     """Cut paths via gmsh booleans (needed for patterns with solids)."""
     from kirigami import export as X
     out = RUNS / spec["name"]
@@ -239,7 +261,7 @@ def export_exact(spec):
 MESH_FORMATS = ("msh", "inp", "bdf", "vtk")      # gmsh, Abaqus, Nastran, VTK; plus XDMF
 
 
-def export_mesh(spec):
+def export_mesh(spec: Spec) -> Summary:
     """The finite element mesh of a design, exactly as the solver uses it, for other codes:
     gmsh (.msh), Abaqus (.inp), Nastran (.bdf), VTK (.vtk) and XDMF (.xdmf). Linear
     triangles in mm; the nodes along every cut are already duplicated, so its two lips are
@@ -266,7 +288,12 @@ def export_mesh(spec):
                 files=[str(f) for f in files if f.exists()])
 
 
-def export_stl(spec, thickness, kerf):
+def export_stl(spec: Spec, thickness: float, kerf: float) -> Summary:
+    """A solid model of the cut sheet for 3D printing: thickness > 0 and kerf >= 0, in mm."""
+    if not thickness > 0:
+        raise ValueError(f"thickness must be positive, not {thickness}")
+    if not kerf >= 0:
+        raise ValueError(f"kerf must not be negative, not {kerf}")
     from kirigami import export as X
     out = RUNS / spec["name"]
     out.mkdir(parents=True, exist_ok=True)
@@ -276,7 +303,12 @@ def export_stl(spec, thickness, kerf):
                 files=[str(f)])
 
 
+COMMANDS = ("stiffness", "buckle", "simulate", "export", "mesh", "stl")
+
 if __name__ == "__main__":
+    if len(sys.argv) < 3 or sys.argv[1] not in COMMANDS or (sys.argv[1] == "stl" and len(sys.argv) != 5):
+        raise SystemExit(f"usage: python3 -m kirigami.api {{{'|'.join(COMMANDS)}}} spec.json [...]\n"
+                         "       python3 -m kirigami.api stl spec.json <thickness_mm> <kerf_mm>")
     cmd, path = sys.argv[1], sys.argv[2]
     if cmd == "stiffness":                       # one or more specs: stiffness spec1.json spec2.json ...
         print(json.dumps(stiffness_batch(sys.argv[2:])))

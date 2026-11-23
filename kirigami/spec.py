@@ -25,16 +25,22 @@ Generators are the pattern functions of kirigami/geometry.py; L and W are passed
 from "sheet", everything else from "params". Only numpy is needed here, so specs
 can be built and checked without FEniCSx.
 """
+from __future__ import annotations
+
 import json
+import os
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any, Callable, cast
 
 import numpy as np
 
 from kirigami import geometry as geo
+from kirigami._types import Pattern, Polyline, Spec
 from kirigami import grammar
 from kirigami import kirismiles
 
-GENERATORS = {
+GENERATORS: dict[str, Callable[..., Pattern]] = {
     "single_cut": geo.single_cut_pattern,
     "two_cuts": geo.two_cuts_pattern,
     "pitch_cell": geo.pitch_pattern,
@@ -47,7 +53,7 @@ GENERATORS = {
     "kirismiles": kirismiles.spec_pattern,       # any KiriSMILES string (kirigami/kirismiles.py)
 }
 
-DEFAULTS = {
+DEFAULTS: dict[str, dict[str, Any]] = {
     "material": {"E": 3500.0, "nu": 0.38, "h": 0.127},
     "mesh": {"h_cut": 0.6, "h_far": 3.0, "refine_dist": [1.0, 6.0]},
     "load": {"Dmax_over_L": 0.1, "steps": 40},
@@ -73,10 +79,13 @@ BOUNDARY_TYPES = {
 # analogue of the plane-strain 2D calculations of rotating-unit kirigami.
 
 
-def load(path_or_dict):
+def load(path_or_dict: str | os.PathLike[str] | Mapping[str, Any]) -> Spec:
     """Read a spec from a JSON file (or accept a dict) and fill in defaults."""
-    spec = (json.loads(Path(path_or_dict).read_text()) if not isinstance(path_or_dict, dict)
-            else dict(path_or_dict))
+    spec = (dict(path_or_dict) if isinstance(path_or_dict, Mapping)
+            else json.loads(Path(path_or_dict).read_text()))
+    for key in DEFAULTS:
+        if not isinstance(spec.get(key, {}), Mapping):
+            raise ValueError(f"spec[{key!r}] must be an object, not {type(spec[key]).__name__}")
     for key, default in DEFAULTS.items():
         spec[key] = {**default, **spec.get(key, {})}
     spec.setdefault("name", "design")
@@ -86,7 +95,7 @@ def load(path_or_dict):
     return spec
 
 
-def pattern(spec):
+def pattern(spec: Spec) -> Pattern:
     """The cuts / holes / solids of a spec, generated if needed."""
     p = spec["pattern"]
     L, W = spec["sheet"]["L"], spec["sheet"]["W"]
@@ -95,34 +104,66 @@ def pattern(spec):
             raise ValueError(f"unknown generator {p['generator']!r}; "
                              f"available: {sorted(GENERATORS)}")
         return GENERATORS[p["generator"]](L, W, **p.get("params", {}))
-    return {k: [[tuple(pt) for pt in g] for g in p.get(k, [])] for k in ("cuts", "holes", "solids")}
+    return {k: [cast(Polyline, [tuple(pt) for pt in g]) for g in p.get(k, [])]   # shapes checked in validate()
+            for k in ("cuts", "holes", "solids")}
 
 
-def validate(spec):
+def _num(v: Any) -> float | None:
+    """v as a finite float, or None if it is missing or not a number (bools are not numbers)."""
+    if isinstance(v, bool) or not isinstance(v, (int, float, np.integer, np.floating)):
+        return None
+    v = float(v)
+    return v if np.isfinite(v) else None
+
+
+def validate(spec: Spec) -> list[str]:
     """Cheap checks before meshing. Returns a list of human-readable problems
-    (empty if the spec looks fine)."""
-    errs = []
-    try:
-        L, W = float(spec["sheet"]["L"]), float(spec["sheet"]["W"])
-    except (KeyError, TypeError, ValueError):
+    (empty if the spec looks fine); it never raises for a malformed spec. Sections
+    other than sheet and pattern fall back to DEFAULTS, as in load()."""
+    if not isinstance(spec, Mapping):
+        return [f"a spec must be a JSON object, not {type(spec).__name__}"]
+    errs: list[str] = []
+    sec: dict[str, Mapping[str, Any]] = {}
+    for key in ("sheet", "pattern", *DEFAULTS):
+        v = spec.get(key, DEFAULTS.get(key))
+        if v is None:
+            return errs + [f"{key} is required"]
+        if not isinstance(v, Mapping):
+            return errs + [f"{key} must be an object, not {type(v).__name__}"]
+        sec[key] = {**DEFAULTS.get(key, {}), **v}
+    L, W = _num(sec["sheet"].get("L")), _num(sec["sheet"].get("W"))
+    if L is None or W is None:
         return ["sheet.L and sheet.W are required numbers (mm)"]
     if L <= 0 or W <= 0:
         errs.append("sheet dimensions must be positive")
-    m = spec["material"]
-    if not (m["E"] > 0 and m["h"] > 0 and -1 < m["nu"] < 0.5):
+    m = sec["material"]
+    E, h, nu = _num(m.get("E")), _num(m.get("h")), _num(m.get("nu"))
+    if E is None or h is None or nu is None:
+        errs.append("material.E, material.h and material.nu must be numbers")
+    elif not (E > 0 and h > 0 and -1 < nu < 0.5):
         errs.append("material needs E > 0, h > 0 and -1 < nu < 0.5")
     if m.get("model", "svk") not in MATERIAL_MODELS:
         errs.append(f"material.model must be one of {list(MATERIAL_MODELS)}")
-    mesh = spec["mesh"]
-    if mesh.get("h_hinge") is not None and not (mesh["h_hinge"] > 0 and mesh.get("hinge_gap", 1.0) > 0):
+    mesh = sec["mesh"]
+    hc = _num(mesh.get("h_cut"))
+    if hc is None or hc <= 0 or not ((_num(mesh.get("h_far")) or 0) > 0):
+        errs.append("mesh.h_cut and mesh.h_far must be positive numbers (mm)")
+        hc = None
+    if mesh.get("h_hinge") is not None and not ((_num(mesh["h_hinge"]) or 0) > 0
+                                                and (_num(mesh.get("hinge_gap", 1.0)) or 0) > 0):
         errs.append("mesh.h_hinge and mesh.hinge_gap must be positive")
-    if spec["load"].get("spacing", "geometric") not in ("geometric", "linear"):
+    load_ = sec["load"]
+    if load_.get("spacing", "geometric") not in ("geometric", "linear"):
         errs.append("load.spacing must be 'geometric' or 'linear'")
-    b = spec["boundary"]
-    if b["type"] not in BOUNDARY_TYPES:
+    steps = load_.get("steps")
+    if isinstance(steps, bool) or not isinstance(steps, (int, np.integer)) or steps < 1:
+        errs.append("load.steps must be a whole number of at least 1")
+    b = sec["boundary"]
+    if b.get("type") not in BOUNDARY_TYPES:
         errs.append(f"boundary.type must be one of {sorted(BOUNDARY_TYPES)}")
-    if not isinstance(b["in_plane"], bool):
+    if not isinstance(b.get("in_plane"), bool):
         errs.append("boundary.in_plane must be true or false")
+    spec = {**spec, **sec}
     try:
         pat = pattern(spec)
     except Exception as e:                                  # bad generator params etc.
@@ -141,23 +182,23 @@ def validate(spec):
                 errs.append(f"cuts[{i}] touches a clamped edge (x = 0 or x = L)")
     if not any(pat[k] for k in ("cuts", "holes")):
         errs.append("pattern has no cuts or holes")
-    hc = spec["mesh"]["h_cut"]
-    for i, c in enumerate(pat["cuts"]):
-        seg = np.diff(np.asarray(c, float), axis=0)
-        if (np.hypot(seg[:, 0], seg[:, 1]) < 2 * hc).any():
-            errs.append(f"cuts[{i}] has a segment shorter than 2*h_cut; refine the mesh "
-                        "or lengthen it")
+    if hc is not None:
+        for i, c in enumerate(pat["cuts"]):
+            seg = np.diff(np.asarray(c, float), axis=0)
+            if (np.hypot(seg[:, 0], seg[:, 1]) < 2 * hc).any():
+                errs.append(f"cuts[{i}] has a segment shorter than 2*h_cut; refine the mesh "
+                            "or lengthen it")
     errs += _crossing_cuts(pat["cuts"])
     return errs
 
 
-def _crossing_cuts(cuts):
+def _crossing_cuts(cuts: list[Polyline]) -> list[str]:
     """Zero-width cuts must not cross or touch each other: the crack model cannot
     split junctions. Returns one message per offending pair."""
     segs = [(i, np.asarray(p, float), np.asarray(q, float))
             for i, c in enumerate(cuts) for p, q in zip(c[:-1], c[1:])]
 
-    def cross(o, a, b):
+    def cross(o: np.ndarray, a: np.ndarray, b: np.ndarray) -> float:
         return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
 
     bad = set()
@@ -173,5 +214,5 @@ def _crossing_cuts(cuts):
             for i, j in sorted(bad)]
 
 
-def save(spec, path):
+def save(spec: Spec, path: str | os.PathLike[str]) -> None:
     Path(path).write_text(json.dumps(spec, indent=2))
