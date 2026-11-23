@@ -43,7 +43,7 @@ def main():
     box(ax, 0.1, 0.5, 3.0, 2.9, "AI agent", ["any client of the", "Model Context Protocol,",
                                              "one or several at once"], ORANGE)
 
-    # the platform: server, queue, solver and store inside one frame
+    # the platform: server, queue, engine and store inside one frame
     ax.add_patch(FancyBboxPatch((5.13, 0.2), 9.02, 6.85, boxstyle="round,pad=0.02,rounding_size=0.2",
                                 fc="none", ec=LINE, lw=1.0, ls=(0, (4, 3))))
     ax.text(9.55, 7.42, "KiriSMILES platform", ha="center", va="bottom", fontsize=9.5,
@@ -61,7 +61,7 @@ def main():
 
     # back end
     box(ax, 10.9, 4.9, 3.0, 1.8, "Job queue", ["one solve at a time;", "jobs outlive sessions"], MUTED)
-    box(ax, 10.9, 2.7, 3.0, 1.6, "FEM solver", ["FEniCSx in a container"], AQUA)
+    box(ax, 10.9, 2.7, 3.0, 1.6, "Engine", ["plate and shell models;", "FEniCSx in a container"], AQUA)
     box(ax, 10.9, 0.5, 3.0, 1.6, "Results store", ["one record per run,", "found by geometry key"], MUTED)
 
     # arrows: requests go right (upper), answers come back (lower)
