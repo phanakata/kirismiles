@@ -158,7 +158,7 @@ def main() -> None:
     except OSError:
         font = ImageFont.load_default()
     for t, xy in [("(a)", (xs[0] + 8, 6)), ("(b)", (xs[1] + 10, 8)), ("(c)", (xs[2] + 8, 6)),
-                  ("(d)", (10, H + 4)), ("(e)", (W_out // 2 + 10, H + 4))]:
+                  ("(d)", (10, H + 4)), ("(e)", (W_out // 2 - 30, H + 4))]:
         dr.rectangle((xy[0] - 4, xy[1] - 2, xy[0] + 58, xy[1] + 40), fill="white")
         dr.text(xy, t, fill="black", font=font)
     out.save(a.out)

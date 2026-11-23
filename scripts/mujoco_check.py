@@ -164,8 +164,8 @@ def plot(a: argparse.Namespace) -> None:
         z = np.load(a.fenics)
         D, F, uz = np.r_[0, z["Delta"]], np.r_[0, z["F"]], np.r_[0, z["uz_max"]]
         k = D <= Dlim
-        ax[0].plot(100 * D[k] / a.L, F[k], "o-", color="k", ms=3, lw=1.2, label="KiriSMILES engine (KL shell)")
-        ax[1].plot(100 * D[k] / a.L, uz[k], "o-", color="k", ms=3, lw=1.2, label="KiriSMILES engine")
+        ax[0].plot(100 * D[k] / a.L, F[k], "o-", color="k", ms=3, lw=1.2, label="FEniCSx (KL shell)")
+        ax[1].plot(100 * D[k] / a.L, uz[k], "o-", color="k", ms=3, lw=1.2, label="FEniCSx")
     if mj is not None:
         D, F, w = mj
         ax[0].plot(100 * D / a.L, F, "s--", color="#D55E00", ms=3.5, lw=1.2, label="MuJoCo (same design, 2D flex)")
