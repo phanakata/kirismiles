@@ -1,6 +1,7 @@
 """Snapshot figures for the paper: the GIFs as rows of still frames.
 
-    python scripts/plot_snapshots.py            -> results/snapshots/snapshots_{single,actuators,rotating}.png
+    python scripts/plot_snapshots.py            -> results/snapshots/snapshots_{single,actuators,series,rotating}.png
+    python scripts/plot_snapshots.py series     -> only the named group(s)
 
 Each row is one simulation, drawn at four applied displacements: the flat sheet
 before stretching (Delta = 0), the stored steps nearest to 1/3 and 2/3 of the
@@ -41,7 +42,10 @@ GROUPS = {
         (CFG / "pitch_convex.npz", "pitch, convex", 1),
         (CFG / "roll.npz", "roll", 1),
         (CFG / "yaw.npz", "yaw", 1),
+    ],
+    "series": [                            # cells in series: the chain and the 2 x 2 design
         (CFG / "pitch_chain.npz", "pitch chain", 1),
+        (CFG / "pitch_roll_2x2.npz", "pitch and roll,\n[A, B; B, A]", 1),
     ],
     "rotating": [
         (RUNS / "cho_l1_biaxial_inplane" / "history.npz", "equal-biaxial,\nin plane (top view)", 1,
@@ -52,7 +56,8 @@ GROUPS = {
 }
 FRACTIONS = (0.0, 1 / 3, 2 / 3, 1.0)
 # three frames per design (flat, halfway, last) where four were redundant
-GROUP_FRACTIONS = {"single": (0.0, 0.5, 1.0), "actuators": (0.0, 0.5, 1.0)}
+GROUP_FRACTIONS = {"single": (0.0, 0.5, 1.0), "actuators": (0.0, 0.5, 1.0),
+                   "series": (0.0, 0.5, 1.0)}
 EDGE = "#6e6d69"                           # outline of the sheet
 RENDER_DPI = 300                           # resolution of the off-screen frames
 PANEL_COLORS = ("#e8590c", "#1f6fd1")      # the two checkerboard sublattices of panels

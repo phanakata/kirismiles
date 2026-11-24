@@ -39,7 +39,7 @@ to speed up data-driven kirigami research, in the spirit of Emma Lejeune's
 - **An identity for every design.** A canonical string and a geometry key, so that the same
   design written two ways is recognised as one.
 - **A data format.** JSON specs record a design together with its context: sheet, material, mesh
-  and load. A results format for an open dataset is on the [roadmap](#roadmap).
+  and load.
 
 **Software**
 
@@ -58,8 +58,8 @@ to speed up data-driven kirigami research, in the spirit of Emma Lejeune's
   checking designs, running simulations, following their logs, and retrieving results.
   [Details](#4-the-kirismiles-platform).
 
-The project is under active development. The [roadmap](#roadmap) lists what is not built yet, and
-[How to get involved](#how-to-get-involved) says how to help.
+The project is under active development. [How to get involved](#how-to-get-involved) says how
+to help.
 
 ## Installation
 
@@ -158,6 +158,13 @@ Together they keep strings short. The pitch actuator of the paper is one U-shape
 crack, each mirrored:
 
 ![The pitch cell built in four steps](results/kirismiles/build_pitch.png)
+
+**Supercells** hold different motifs in one cell. A group of pieces is copied whole to every
+lattice point, so (a) four slits A–D written as one group tile the sheet as 2 × 2 supercells,
+and (b) the pitch (A) and roll (B) cells of the paper can be laid out as [A, B; B, A]. Each type
+of cell is shaded in its own colour; the [notation](KIRISMILES.md#supercells) gives the strings.
+
+![Supercells: four slits as one group, and the pitch and roll cells in a 2 x 2 layout](results/kirismiles/supercell.png)
 
 Every figure here is drawn by the parser from the string above its panel. The
 [full notation](KIRISMILES.md) explains each part, with more examples.
@@ -263,6 +270,23 @@ the rigid rotating-squares mechanism; and the out-of-plane buckling stretch scal
 plate theory predicts.
 
 ![Rotating squares: in-plane biaxial deformation, rotation against strain, and buckling against thickness](results/rotating_squares/rotating_squares.png)
+
+### Cells in series
+
+Cells placed one after another along the pull carry the same force. Identical cells share the
+stretch: the three ribbons of a chain of pitch cells all turn, in the same direction, by 66 to
+68° at 6 % stretch. Different cells deploy in sequence. In the [A, B; B, A] supercell of pitch
+(A) and roll (B) cells above, the roll cells buckle first and take up almost the whole stretch;
+as they open, the force in each row rises until the pitch cells tilt too, from about 7 % stretch,
+reaching 36–37° at 10 % while the roll cells reach 67°. Both rows behave the same way.
+
+| Chain of three pitch cells (415 × 60 mm) | Pitch and roll, [A, B; B, A] (290 × 121 mm) |
+|:---:|:---:|
+| ![pitch chain](results/configs/pitch_chain.gif) | ![pitch and roll supercell](results/configs/pitch_roll_2x2.gif) |
+
+The design is built by [`scripts/build_pitch_roll.py`](scripts/build_pitch_roll.py) and simulated
+with `python scripts/kirigami_cli.py simulate specs/pitch_roll_2x2.json` (about 1.5 hours on a
+laptop).
 
 [`BENCHMARK.md`](BENCHMARK.md) has the models, the mesh, how to run every case, the comparisons
 and the limits of each.
@@ -400,23 +424,6 @@ To keep one server running for several clients, start it with
 authentication, so keep it on your own machine or a trusted network. [`TOOLS.md`](TOOLS.md#mcp-server-kirigami-tools-for-ai-assistants)
 lists every tool and explains how jobs are run.
 
-## Roadmap
-
-- **Dataset.** One open table of simulated designs: string, geometry key, solver settings and
-  results.
-- **Stored or live results.** The API and web app will look up the geometry key and return a stored
-  result when there is one, and otherwise run the solver.
-- **Valid by construction.** A repair map that makes every lattice string a valid design, the
-  property SELFIES brings to molecules.
-- **More notation.** A full canonical form for free-form strings, curved cuts, non-rectangular
-  sheet outlines (such as disks), and several lattice bands in one sheet.
-- **Benchmark coverage.** The quantitative rotating-squares comparison with Cho *et al.*, and further published designs.
-- **Solver.** Arc-length continuation, to follow runs through the stiff and snapping stretches
-  where load-controlled Newton steps stall, and hyperelastic material laws for large local
-  strains.
-- **After the first release.** The framework will be used and extended for automated design
-  search, such as a collective of search agents, as follow-up work.
-
 ## How to get involved
 
 Kirigami informatics needs more than one group's designs. Ways to help:
@@ -521,6 +528,8 @@ results/mujoco_check/  MuJoCo comparison data, figures and GIFs
 scripts/verify/        rigid-unit mode counts that check the hierarchical (fractal) cut strings
 tests/                 tests of the notation, the import, the run engine, the MCP server and the MuJoCo export
 scripts/check_strings.py  every simulated design survives geometry -> string -> geometry
+scripts/build_pitch_roll.py  the [A, B; B, A] supercell of pitch and roll cells -> specs/pitch_roll_2x2.json
+doc/                   developer guide: how the code fits together, where to start reading
 results/single_cut/    Fig. 2 data and figures
 results/configs/       multi-cut data (.npz), GIFs and figures
 results/kirismiles/    figures of KIRISMILES.md (scripts/plot_kirismiles.py,

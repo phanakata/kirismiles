@@ -52,6 +52,7 @@ files = [
     "scripts/corpus.py",
     "scripts/build_kdb.py",
     "scripts/run_config.py",
+    "scripts/build_pitch_roll.py",
 ]
 python_version = "3.12"
 plugins = ["pydantic.mypy"]          # Field defaults and validators of kirigami/kdb.py

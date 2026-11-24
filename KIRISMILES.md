@@ -99,16 +99,15 @@ and the rule for repeating it, not every copy.
 | branches written in parentheses | groups in parentheses, with their symmetry operations |
 | conditions such as solvent or temperature, left out of the string | sheet size, thickness and material, left out of the string |
 | canonical SMILES and the InChIKey | the canonical string and the geometry key |
-| SELFIES: every string is a valid molecule | the aim of a repair map for lattices (not built yet) |
+| SELFIES: every string is a valid molecule | no equivalent: the validity check reports problems instead |
 
 ### What it is for
 
 - **A shared language.** Mechanicians, people who design and laser-cut sheets, and researchers
   who build data sets and models can all write and read the same string. A string can be pasted
   into a paper, an issue or a spec file, and it regenerates the cuts exactly.
-- **Infrastructure for data-driven design.** The planned results database will store every
-  simulated design under its string and its geometry key, so a design that was already computed
-  is found instead of solved again. Strings are sequences, so the models used for SMILES and
+- **Infrastructure for data-driven design.** Simulated designs are stored under their string and
+  geometry key, so a design that was already computed is found instead of solved again. Strings are sequences, so the models used for SMILES and
   SELFIES (language models, string autoencoders) carry over, and descriptors can be computed
   from the string.
 - **One design space.** Single slits, lattices and the actuator cells of the paper are points in
@@ -307,6 +306,40 @@ hinges:
 P10x20S1/2O10[(C(-8.5,0;8.5,0);C(0,1.5;0,18.5))k0.5]N9E2
 ```
 
+### Supercells
+
+A larger cell can hold several different motifs, a **supercell**. Because a group of free-form
+pieces is copied whole to every lattice point, a supercell is written by grouping its motifs,
+with their positions in mm from the lattice point. Below, each type of cell is shaded in its own
+colour.
+
+![Supercells: four slits as one group, and the pitch and roll cells in a 2 x 2 layout](results/kirismiles/supercell.png)
+
+**(a) Four slits.** The 20 × 30 mm cell holds four 10 × 15 mm subcells: a slit across the pull
+(A), a slit along the pull (B), and slits at 45° (C) and 135° (D).
+
+```
+P20x30S0O0[(V12@-5,-7.5;H12@5,-7.5;D12@-5,7.5;A12@5,7.5)]N5E2
+```
+
+Writing the same slits with fractional positions, `V12@0,0;H12@1/2,0;D12@0,1/2;A12@1/2,1/2`,
+gives the same interior but ragged ends: a slit is kept only if it lies within the band, so slits
+that reach beyond the first or last column are dropped, whereas a group is copied whole to every
+column.
+
+**(b) Pitch and roll cells, [A, B; B, A].** The actuator cells use edge cracks and edge
+coordinates, so they cannot be motifs. A supercell of them is written in the free form, by moving
+the pieces of each cell to its place: [`scripts/build_pitch_roll.py`](scripts/build_pitch_roll.py)
+builds it from the two cell strings and writes
+[`specs/pitch_roll_2x2.json`](specs/pitch_roll_2x2.json), on a 290 × 121 mm sheet. Each cell was
+designed for a 60 mm strip with two free edges, so a 1 mm slot separates the two rows and stops
+10 mm short of each clamped end; cracks that meet the slot are written as 1 mm slots that overlap
+it. The string passes the validity check and is 1474 characters long. It contains no cracks or
+edge coordinates, so it can itself be a motif: with a cell taller than the sheet,
+`P250x200S0O0[(...)]N<n>E0` repeats the supercell n times along the pull, and n = 1 gives the
+same geometry key as the free-form string. Its simulation is shown in the
+[README](README.md#cells-in-series).
+
 ## The paper's configurations
 
 | Design | KiriSMILES | Sheet (mm) |
@@ -476,6 +509,9 @@ Each limit below comes with the reason it exists.
   slits grow longer along the sheet, or one with no repeat at all, can only be written piece by
   piece. The notation describes local repetition; a rule for variation across
   the sheet would be a new kind of object.
+- **Named cells.** A group is copied to every lattice point, but it cannot be given a name,
+  reused, or placed at a chosen position, so a supercell of free-form cells, such as the pitch
+  and roll cells above, is written piece by piece.
 - **Several bands.** A lattice fills one band. Placing different lattices side by side along x is
   not yet written, though it could be added as a sequence of bands.
 - **Curved cuts.** Curves exist only as solids (`+B`), not as cuts. A curved cut can be

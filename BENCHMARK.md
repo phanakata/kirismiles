@@ -446,4 +446,4 @@ Figure: `python scripts/plot_tube_paper.py`.
 - **Load control.** Δ is imposed and Newton steps are bisected when they fail. Near steep
   stiffening or snapping, the step can shrink until the run stops. This happened in the thin
   (h = 0.1 mm) clamped and roller runs, the in-plane roller run, and the 1 mm-hinge biaxial run at
-  a band strain of 0.28. Arc-length continuation is on the roadmap.
+  a band strain of 0.28.

@@ -145,7 +145,7 @@ def fig_alternating():
 def fig_paper():
     """Lift and rotations of the multi-cut configurations, without titles (for the paper)."""
     with plt.rc_context({"font.size": 8}):
-        fig, axs = plt.subplots(1, 4, figsize=(7.2, 2.1), gridspec_kw=dict(wspace=0.62))
+        fig, axs = plt.subplots(1, 3, figsize=(5.6, 2.1), gridspec_kw=dict(wspace=0.55))
         ax = axs[0]
         for name, c, lab in (("two_cuts_ls10", BLUE, r"$\ell_s=10$ mm"),
                              ("two_cuts_ls30", ORANGE, r"$\ell_s=30$ mm")):
@@ -172,22 +172,93 @@ def fig_paper():
         ax.set(xlabel=r"$\Delta/L$", ylabel=r"rotation (deg)", ylim=(0, 60), xlim=(0, 0.15))
         ax.legend(frameon=False, fontsize=6)
         ax.set_title("(c)", loc="left", fontweight="bold")
-        ax = axs[3]
-        d = load("pitch_chain")
-        names = list(d["probe_names"])
-        for k, c in zip(range(3), (BLUE, ORANGE, AQUA)):
-            a = d["probes"][:, names.index(f"rib{k}_l"), :]
-            b = d["probes"][:, names.index(f"rib{k}_r"), :]
-            ax.plot(d["Delta"] / d["L"],
-                    np.degrees(np.arctan2(b[:, 2] - a[:, 2], 88.0 + b[:, 0] - a[:, 0])), "-", lw=1.4,
-                    color=c, label=f"cell {k + 1}")
-        ax.set(xlabel=r"$\Delta/L$", ylabel=r"pitch $\theta_y$ (deg)", ylim=(0, 75), xlim=(0, 0.075), xticks=[0, 0.03, 0.06])
-        ax.legend(frameon=False, fontsize=6, loc="lower right")
-        ax.set_title("(d)", loc="left", fontweight="bold")
         fig.savefig(f"{R}/fig_actuators.png", dpi=220, bbox_inches="tight", facecolor="white")
         plt.close(fig)
 
 
+def chain_pitch(d):
+    """Pitch of the three ribbons of the pitch chain (degrees), from their end probes."""
+    names = list(d["probe_names"])
+    out = []
+    for k in range(3):
+        a = d["probes"][:, names.index(f"rib{k}_l"), :]
+        b = d["probes"][:, names.index(f"rib{k}_r"), :]
+        out.append(np.degrees(np.arctan2(b[:, 2] - a[:, 2], 88.0 + b[:, 0] - a[:, 0])))
+    return out
+
+
+PR_RUN = f"{R}/pitch_roll_2x2.npz"          # copy of results/runs/pitch_roll_2x2/history.npz
+# pitch_roll_2x2 (scripts/build_pitch_roll.py), sheet coordinates in mm: the centre of the
+# middle panel of each pitch cell (A), and the roll probes of each roll cell (B) at the
+# positions used for the single roll cell (15 mm right of the cell centre, 52 and 34 mm
+# above the bottom of its 60 mm row).
+PR_A = {"top": (82.5, 91.0), "bottom": (207.5, 30.0)}
+PR_B = {"top": (207.5, 61.0), "bottom": (82.5, 0.0)}
+
+
+def _node(x, p):
+    return int(np.argmin((x[:, 0] - p[0]) ** 2 + (x[:, 1] - p[1]) ** 2))
+
+
+def pitch_roll_angles(d):
+    """Pitch of each A panel (rotation about y of the segment from 40 mm left to 40 mm right of
+    its centre) and roll of the upper half of each B panel (degrees), for every step."""
+    x, U = d["x"], d["U"].astype(float)
+    th = {}
+    for row, (xc, yc) in PR_A.items():
+        i, j = _node(x, (xc - 40, yc)), _node(x, (xc + 40, yc))
+        th[f"A {row}"] = np.degrees(np.arctan2(U[:, j, 2] - U[:, i, 2], 80.0 + U[:, j, 0] - U[:, i, 0]))
+    for row, (xc, y0) in PR_B.items():
+        o, i = _node(x, (xc + 15, y0 + 52)), _node(x, (xc + 15, y0 + 34))
+        dy = np.abs(18.0 + U[:, o, 1] - U[:, i, 1])
+        th[f"B {row}"] = np.degrees(np.arctan2(U[:, i, 2] - U[:, o, 2], dy))
+    return th
+
+
+def fig_series():
+    """Cells in series: (a) the pitch chain, (b) pitch (A) and roll (B) in the 2 x 2 design,
+    (c) the force carried by each row of the 2 x 2 design (for the paper, no titles)."""
+    d2 = np.load(PR_RUN)
+    th = pitch_roll_angles(d2)
+    L2 = float(d2["L"])
+    x2 = d2["Delta"] / L2
+    onset = x2[np.argmax(np.abs(th["A top"]) > 5.0)]           # A has tilted by 5 degrees
+    with plt.rc_context({"font.size": 8}):
+        fig, axs = plt.subplots(1, 3, figsize=(7.2, 2.1), gridspec_kw=dict(wspace=0.55))
+        ax = axs[0]
+        d = load("pitch_chain")
+        for k, (t, c) in enumerate(zip(chain_pitch(d), (BLUE, ORANGE, AQUA))):
+            ax.plot(d["Delta"] / d["L"], t, "-", lw=1.4, color=c, label=f"cell {k + 1}")
+        ax.set(xlabel=r"$\Delta/L$", ylabel=r"pitch $\theta_y$ (deg)", ylim=(0, 75), xlim=(0, 0.075),
+               xticks=[0, 0.03, 0.06])
+        ax.legend(frameon=False, fontsize=6, loc="lower right")
+        ax.set_title("(a)", loc="left", fontweight="bold")
+        ax = axs[1]
+        for key, c, ls in (("B top", BLUE, "-"), ("B bottom", BLUE, "--"),
+                           ("A top", ORANGE, "-"), ("A bottom", ORANGE, "--")):
+            lab = (r"B roll $|\theta_x|$" if key[0] == "B" else r"A pitch $|\theta_y|$") + f", {key.split()[1]}"
+            ax.plot(x2, np.abs(th[key]), ls, lw=1.3, color=c, label=lab)
+        ax.axvline(onset, color=MUTED, lw=0.8, ls=":")
+        ax.set(xlabel=r"$\Delta/L$", ylabel="rotation (deg)", ylim=(0, 80), xlim=(0, x2.max()),
+               xticks=[0, 0.05, 0.1])
+        ax.legend(frameon=False, fontsize=5.5, loc="upper left", handlelength=1.8,
+                  labelspacing=0.3)
+        ax.set_title("(b)", loc="left", fontweight="bold")
+        ax = axs[2]
+        ax.plot(x2, d2["F"] / 2, "-", lw=1.4, color=INK)
+        ax.axvline(onset, color=MUTED, lw=0.8, ls=":")
+        ax.set(xlabel=r"$\Delta/L$", ylabel="force per row (N)", ylim=(0, None), xlim=(0, x2.max()),
+               xticks=[0, 0.05, 0.1])
+        ax.set_title("(c)", loc="left", fontweight="bold")
+        fig.savefig(f"{R}/fig_series.png", dpi=220, bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+    i = int(np.argmax(np.abs(th["A top"]) > 5.0))
+    print(f"A tilts past 5 deg at Delta/L = {onset:.4f} (Delta = {d2['Delta'][i]:.2f} mm, "
+          f"force per row {d2['F'][i] / 2:.3f} N)")
+    for k, v in th.items():
+        print(f"   {k}: {np.abs(v[-1]):.1f} deg at the last step (Delta = {d2['Delta'][-1]:.2f} mm)")
+
+
 if __name__ == "__main__":
-    fig3c(); fig_pitch(); fig5a(); fig_alternating(); fig_paper()
+    fig3c(); fig_pitch(); fig5a(); fig_alternating(); fig_paper(); fig_series()
     print("figures written to", R)

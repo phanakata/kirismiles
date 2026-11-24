@@ -3,6 +3,7 @@
     python scripts/plot_kirismiles.py          -> results/kirismiles/*.png
     python scripts/plot_kirismiles.py --paper  -> the same figures without titles,
                                                   in paper/figures/ (captions say it)
+    python scripts/plot_kirismiles.py supercell  -> only the named figure(s)
 
 Each panel shows the L x W sheet (clamped ends hatched, pulled along x), the
 cuts as dark lines, holes as white openings and solids in the sheet colour.
@@ -269,6 +270,51 @@ def fig_motif():
     save(fig, "motif")
 
 
+def fig_supercell():
+    """(a) four slits A-D as one group on a lattice; (b) the pitch (A) and roll (B) cells in a
+    2 x 2 layout [A, B; B, A], from specs/pitch_roll_2x2.json (scripts/build_pitch_roll.py)."""
+    import json
+    tint = {"A": "#e03131", "B": "#1971c2", "C": "#2f9e44", "D": "#9c36b5"}   # one colour per type
+
+    def shade(ax, x, y, w, h, lab, W, alpha=0.22):
+        """A tinted rectangle for one cell of type `lab`, clipped to the sheet."""
+        y0, y1 = max(y, 0.0), min(y + h, W)
+        if y1 > y0:
+            ax.add_patch(Rectangle((x, y0), w, y1 - y0, fc=tint[lab], alpha=alpha, lw=0, zorder=1))
+
+    fig, axs = plt.subplots(1, 2, figsize=(10.4, 2.9), gridspec_kw={"width_ratios": [1, 1.2]})
+    # (a): every supercell, each subcell tinted by its type
+    L, W = 120, 60
+    code = "P20x30S0O0[(V12@-5,-7.5;H12@5,-7.5;D12@-5,7.5;A12@5,7.5)]N5E2"
+    panel(axs[0], code, L, W)
+    axs[0].set_title("(a)  " + code, family="monospace", fontsize=7.5, pad=4)
+    d, P = lattice_points(code, L, W)
+    sub = {"A": (-10, -15), "B": (0, -15), "C": (-10, 0), "D": (0, 0)}  # lower-left corners
+    for x, y in P:
+        for lab, (dx, dy) in sub.items():
+            shade(axs[0], x + dx, y + dy, 10, 15, lab, W)
+    axs[0].plot(P[:, 0], P[:, 1], "o", ms=2.2, color=SEED, zorder=8)
+    xc = P[:, 0][np.argsort(np.abs(P[:, 0] - L / 2))[0]]           # outline the middle supercell
+    axs[0].add_patch(Rectangle((xc - 10, W / 2 - 15), 20, 30, fill=False, ec=CUT, lw=1.0,
+                               ls="--", zorder=7))
+    for lab, (dx, dy) in sub.items():
+        axs[0].text(xc + dx + 1.2, W / 2 + dy + (1.2 if dy < 0 else 13.6), lab, color=tint[lab],
+                    fontsize=7.5, weight="bold", ha="left", va="bottom" if dy < 0 else "top",
+                    zorder=9)
+    # (b): the pitch (A) and roll (B) cells, tinted by type
+    s = json.loads((ROOT / "specs" / "pitch_roll_2x2.json").read_text())
+    L, W = s["sheet"]["L"], s["sheet"]["W"]
+    sheet(axs[1], L, W)
+    draw(axs[1], ks.pattern(s["pattern"]["params"]["code"], L, W), lw=1.1)
+    for lab, (x, y) in zip("ABBA", [(82.5, 90.75), (207.5, 90.75), (82.5, 30.25), (207.5, 30.25)]):
+        shade(axs[1], x - 62.5, y - 30, 125, 60, lab, W, alpha=0.16)
+        axs[1].text(x - 59, y + 25, lab, color=tint[lab], fontsize=9, weight="bold", zorder=9,
+                    va="top")
+    axs[1].set_title("(b)  [A, B; B, A]:  A = pitch cell,  B = roll cell", fontsize=8.5, pad=4)
+    fig.tight_layout(w_pad=1.5)
+    save(fig, "supercell")
+
+
 def fig_build_pitch():
     L, W = 180, 60
     u = "C(2,16;47.5,16;47.5,-16;2,-16)"
@@ -357,6 +403,9 @@ def fig_check():
 
 
 if __name__ == "__main__":
-    for f in (fig_coordinates, fig_pieces, fig_symmetry, fig_lattice, fig_trim, fig_motif,
-              fig_build_pitch, fig_paper, fig_identity, fig_check):
-        f()
+    figs = (fig_coordinates, fig_pieces, fig_symmetry, fig_lattice, fig_trim, fig_motif,
+            fig_supercell, fig_build_pitch, fig_paper, fig_identity, fig_check)
+    only = [a for a in sys.argv[1:] if not a.startswith("--")]   # e.g. supercell: just that one
+    for f in figs:
+        if not only or f.__name__.removeprefix("fig_") in only:
+            f()

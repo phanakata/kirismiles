@@ -22,6 +22,7 @@ __pycache__/
 
 # figures made for the paper only (regenerate with the scripts in scripts/)
 results/configs/fig_actuators.png
+results/configs/fig_series.png
 results/engine/pipeline.png
 results/kirismiles/buildup.png
 results/rotating_squares/fig_rotating_squares.png
@@ -38,7 +39,6 @@ results/configs/mesh_alternating.png
 results/configs/mesh_pitch_chain.png
 results/configs/single_cut.gif
 results/configs/two_cuts_ls30.gif
-results/configs/pitch_chain.gif
 results/configs/designs_summary.json
 
 # one-off development scripts
