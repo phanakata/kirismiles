@@ -41,7 +41,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import kirigami_cli as cli  # noqa: E402
-from kirigami import jobs  # noqa: E402
+from kirigami import importer, jobs  # noqa: E402
 from kirigami import spec as S  # noqa: E402
 
 RUNNER: jobs.Runner | None = None      # started in main()
@@ -68,6 +68,20 @@ def as_jsonable(pattern: dict[str, Any]) -> dict[str, list[list[list[float]]]]:
     """A pattern with plain floats, for JSON."""
     return {k: [[[float(x), float(y)] for x, y in g] for g in pattern.get(k, [])]
             for k in ("cuts", "holes", "solids")}
+
+
+def kirismiles_string(spec: dict[str, Any], geometry: dict[str, Any] | None) -> str | None:
+    """The design as a KiriSMILES string: the one typed for a kirismiles pattern, otherwise
+    the free-form string of its cuts, holes and solids (None if there is nothing to show)."""
+    pat = spec.get("pattern", {})
+    if pat.get("generator") == "kirismiles":
+        return str(pat.get("params", {}).get("code", ""))
+    if not geometry:
+        return None
+    try:
+        return importer.to_string(geometry, float(spec["sheet"]["L"]), float(spec["sheet"]["W"]))
+    except (KeyError, TypeError, ValueError):     # an empty design, or a sheet size that is not a number
+        return None
 
 
 def web_job(job: jobs.Job) -> jobs.Job:
@@ -228,7 +242,8 @@ class Handler(BaseHTTPRequestHandler):
             errs = S.validate(spec)
             geometry = as_jsonable(S.pattern(spec)) if not any(
                 e.startswith("pattern could not") for e in errs) else None
-            return self.send_json(dict(ok=not errs, errors=errs, pattern=geometry, spec=spec))
+            return self.send_json(dict(ok=not errs, errors=errs, pattern=geometry, spec=spec,
+                                       kirismiles=kirismiles_string(spec, geometry)))
         if p == "/api/buckle":
             spec = self.spec_from_body()
             errs = S.validate(spec)

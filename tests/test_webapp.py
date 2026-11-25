@@ -57,6 +57,17 @@ def test_pattern_endpoint_checks_a_good_spec(app):
     assert r["spec"]["name"] == "web_test"                     # made safe for a folder name
 
 
+def test_pattern_endpoint_returns_the_kirismiles_string(app):
+    # a typed string comes back as typed; drawn shapes come back as a free-form string
+    r = json.loads(request(app, "POST", "/api/pattern", GOOD)[1])
+    assert r["kirismiles"] == "P5x45S1/2O0[V42@0,0]N18E3"
+    drawn = {**GOOD, "pattern": {"cuts": [[[40, 30], [80, 30]]], "holes": [], "solids": []}}
+    r = json.loads(request(app, "POST", "/api/pattern", drawn)[1])
+    assert r["ok"] and r["kirismiles"] == "C(-20,0;20,0)"
+    empty = {**GOOD, "pattern": {"cuts": [], "holes": [], "solids": []}}
+    assert json.loads(request(app, "POST", "/api/pattern", empty)[1])["kirismiles"] is None
+
+
 def test_pattern_endpoint_reports_a_bad_design(app):
     bad = {**GOOD, "material": {"h": -1}}
     status, body = request(app, "POST", "/api/pattern", bad)

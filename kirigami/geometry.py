@@ -39,9 +39,13 @@ def _require(**checks: tuple[float, str]) -> None:
 def build_geometry(L: float, W: float, cuts: Iterable[Shape] = (), holes: Iterable[Shape] = (),
                    solids: Iterable[Shape] = ()) -> None:
     """Create the sheet with its holes, solids and embedded cut lines in the
-    current gmsh model (OpenCASCADE kernel) and synchronise it."""
+    current gmsh model (OpenCASCADE kernel) and synchronise it. The material is
+    the sheet minus the holes plus the solids; the parts of cuts that lie outside
+    the material (inside a hole) are dropped, so a cut crossing a hole edge ends
+    on that edge."""
     import gmsh
     occ = gmsh.model.occ
+    cuts, holes, solids = list(cuts), list(holes), list(solids)
 
     def polygon(pts: Shape) -> int:
         tags = [occ.addPoint(x, y, 0) for x, y in pts]
@@ -53,10 +57,20 @@ def build_geometry(L: float, W: float, cuts: Iterable[Shape] = (), holes: Iterab
         sheet, _ = occ.cut(sheet, [(2, polygon(h)) for h in holes])
     if solids:
         sheet, _ = occ.fuse(sheet, [(2, polygon(s)) for s in solids])
-    lines = []
+    # Cuts that touch or lie inside a hole or solid outline are trimmed to the material;
+    # the others are added untouched (trimming renumbers the lines, which moves mesh nodes).
+    outlines = [np.vstack([np.asarray(p, float), np.asarray(p[:1], float)])
+                for p in [*holes, *solids]]
+    lines: list[int] = []
+    trim: list[int] = []
     for poly in cuts:
         pts = [occ.addPoint(x, y, 0) for x, y in poly]
-        lines += [occ.addLine(a, b) for a, b in zip(pts[:-1], pts[1:])]
+        new = [occ.addLine(a, b) for a, b in zip(pts[:-1], pts[1:])]
+        P = np.asarray(poly, float)
+        (trim if any(_touch(P, Q) for Q in outlines) else lines).extend(new)
+    if trim:
+        kept, _ = occ.intersect([(1, l) for l in trim], sheet, removeObject=True, removeTool=False)
+        lines += [t for d, t in kept if d == 1]
     if lines:
         occ.fragment(sheet, [(1, l) for l in lines])
     occ.synchronize()
@@ -199,17 +213,23 @@ def sheet_with_cuts(L: float, W: float, cuts: Sequence[Shape] = (), holes: Seque
         hole_curves = [c for c in bnd if not on_outer(c)]
 
         # Cut end points: interior ones are crack tips (refined, nodes kept
-        # shared); ones on a free edge belong to edge cracks and must be split
-        # by the Crack plugin so that the crack mouth can open.
-        bnd_pts = {abs(p) for _, p in gmsh.model.getBoundary([(1, c) for c in bnd],
+        # shared); points where a cut meets a free edge (the sheet edge or a hole
+        # edge it runs into) are crack mouths, split by the Crack plugin so that
+        # the mouth can open.
+        free = [c for c in bnd if len(gmsh.model.getAdjacencies(1, c)[0]) == 1]  # not a seam
+        bnd_pts = {abs(p) for _, p in gmsh.model.getBoundary([(1, c) for c in free],
+                                                              combined=False, oriented=False)}
+        cut_pts = {abs(p) for _, p in gmsh.model.getBoundary([(1, c) for c in cut_curves],
                                                               combined=False, oriented=False)}
         ends = [(x, y) for poly in cuts for (x, y) in (poly[0], poly[-1])]
         tip_pts: list[int] = []
         mouth_pts: list[int] = []
         for _, p in gmsh.model.getEntities(0):
             xp, yp, _ = gmsh.model.getValue(0, p, [])
-            if any(np.hypot(xp - x, yp - y) < tol for x, y in ends):
-                (mouth_pts if p in bnd_pts else tip_pts).append(p)
+            if p in bnd_pts and p in cut_pts:
+                mouth_pts.append(p)
+            elif p not in bnd_pts and any(np.hypot(xp - x, yp - y) < tol for x, y in ends):
+                tip_pts.append(p)
 
         gmsh.model.addPhysicalGroup(2, surfs, 1)
         cut_tag = gmsh.model.addPhysicalGroup(1, cut_curves, 10) if cut_curves else None

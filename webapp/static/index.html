@@ -43,6 +43,9 @@
   .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
   .toolbar .sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
   .toolbar label { color: var(--muted); font-size: 12px; }
+  .ksrow { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .ksrow label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .ksrow input { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
   #canvasWrap { border: 1px solid var(--line); border-radius: 8px; background: #fbfbfa;
                 position: relative; }
   #canvas { width: 100%; height: auto; display: block; touch-action: none; user-select: none; }
@@ -86,6 +89,12 @@
 
   <!-- centre: editor -->
   <section class="panel" id="centre">
+    <div class="ksrow">
+      <label for="ksCode">KiriSMILES</label>
+      <input id="ksCode" spellcheck="false" autocomplete="off"
+             placeholder="type a design, e.g. P5x45S1/2O0[V42@0,0]N18E3 — it is drawn as you type">
+      <button id="btnKs" title="Draw the design in the box (Enter does the same)">Render</button>
+    </div>
     <div class="toolbar">
       <button data-tool="select" class="on" title="Select and drag shapes (Delete removes)">Select</button>
       <button data-tool="slit" title="Drag to draw a zero-width cut">Slit</button>
@@ -110,7 +119,8 @@
     </div>
     <div id="canvasWrap"><svg id="canvas"></svg></div>
     <div class="hint">x is the pulled direction: the left edge (blue) is clamped, the right edge is pulled by Δ.
-      Red = cuts, white = holes, darker grey = solids added inside holes.</div>
+      Red = cuts, white = holes, darker grey = solids added inside holes. A solid drawn after a cut
+      closes the cut where it covers it; a cut ends where it meets a hole; solids always fill holes.</div>
     <h3>Selected shape</h3>
     <div id="props" class="grid2"></div>
   </section>
@@ -188,14 +198,53 @@ function shapePolygon(sh) {             // polygon for area shapes (holes / soli
   if (sh.type === "poly") return sh.pts;
   return null;
 }
+// Where segment a-b crosses segment c-d, as a fraction t of a-b (0 < t < 1), else null.
+function crossAt(a, b, c, d) {
+  const rx = b[0] - a[0], ry = b[1] - a[1], sx = d[0] - c[0], sy = d[1] - c[1];
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-12) return null;
+  const t = ((c[0] - a[0]) * sy - (c[1] - a[1]) * sx) / den, u = ((c[0] - a[0]) * ry - (c[1] - a[1]) * rx) / den;
+  return t > 1e-9 && t < 1 - 1e-9 && u >= 0 && u <= 1 ? t : null;
+}
+// Split a cut polyline where it crosses the edges of `polys` and drop the pieces whose
+// middle point satisfies drop(point). Returns the remaining polylines (none shorter than 0.05 mm).
+function clipCut(pts, polys, drop) {
+  const out = [], at = (a, b, t) => [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+  let cur = [], curSeg = -1;
+  for (let k = 0; k < pts.length - 1; k++) {
+    const a = pts[k], b = pts[k + 1], ts = [0, 1];
+    for (const P of polys) for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+      const t = crossAt(a, b, P[j], P[i]); if (t !== null) ts.push(t);
+    }
+    ts.sort((x, y) => x - y);
+    for (let m = 0; m < ts.length - 1; m++) {
+      if (ts[m + 1] - ts[m] < 1e-9) continue;
+      if (drop(at(a, b, (ts[m] + ts[m + 1]) / 2))) { if (cur.length > 1) out.push(cur); cur = []; continue; }
+      const p = at(a, b, ts[m]), q = at(a, b, ts[m + 1]);
+      if (!cur.length) cur = [p, q];
+      else if (curSeg === k) cur[cur.length - 1] = q;        // same straight segment: extend it
+      else cur.push(q);
+      curSeg = k;
+    }
+  }
+  if (cur.length > 1) out.push(cur);
+  const len = (c) => c.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - c[i][0], p[1] - c[i][1]), 0);
+  return out.filter((c) => len(c) > 0.05);
+}
+const isAreaSolid = (sh) => sh.role === "solid" && ["rect", "ellipse", "poly"].includes(sh.type);
 function shapesToPattern() {
   const pat = { cuts: [], holes: [], solids: [] };
-  for (const sh of shapes) {
-    if (sh.type === "slit") pat.cuts.push([sh.p, sh.q]);
-    else if (sh.type === "polycut") pat.cuts.push(sh.pts);
+  shapes.forEach((sh, i) => {
+    if (sh.type === "slit" || sh.type === "polycut") {
+      // shapes stack in drawing order: a solid drawn after this cut closes it where it covers it
+      const pts = sh.type === "slit" ? [sh.p, sh.q] : sh.pts;
+      const later = shapes.slice(i + 1).filter(isAreaSolid).map(shapePolygon);
+      for (const c of later.length ? clipCut(pts, later, (m) => later.some((P) => inPoly(m, P))) : [pts])
+        pat.cuts.push(c);
+    }
     else if (sh.type === "slot") pat.holes.push(shapePolygon(sh));
     else pat[sh.role === "solid" ? "solids" : "holes"].push(shapePolygon(sh));
-  }
+  });
   return pat;
 }
 function patternToShapes(pat) {
@@ -237,7 +286,12 @@ function drawPattern(svg, sp, pat, opts = {}) {
   for (const [kind, pts] of items)
     el("polygon", { points: poly(pts), fill: kind === "hole" ? "#fbfbfa" : "var(--solid)",
                     stroke: "#8f8e88", "stroke-width": opts.thumb ? .3 : 1, "vector-effect": ns }, shapesG);
-  for (const c of pat.cuts || [])
+  // draw only the parts of cuts on material, as the mesher keeps them (none inside a hole)
+  const holes = pat.holes || [], solids = pat.solids || [], cutters = holes.concat(solids);
+  const noMaterial = (m) => holes.some((P) => inPoly(m, P)) && !solids.some((P) => inPoly(m, P));
+  const shown = cutters.length ? (pat.cuts || []).flatMap((c) => clipCut(c, cutters, noMaterial))
+                               : (pat.cuts || []);
+  for (const c of shown)
     el("polyline", { points: poly(c), fill: "none", stroke: "var(--cut)",
                      "stroke-width": opts.thumb ? 0.9 : 2, "vector-effect": ns }, shapesG);
   for (const x of [0, L])
@@ -415,7 +469,9 @@ function renderGenerator() {
     inp.oninput = () => { params[k] = parseFloat(inp.value); scheduleValidate(); };
     f.appendChild(inp); box.appendChild(f);
   }
-  if (!box.children.length) box.innerHTML = `<div class="hint">This generator uses its default parameters.</div>`;
+  if (!box.children.length) box.innerHTML = spec.pattern.generator === "kirismiles"
+    ? `<div class="hint">Edit the string in the KiriSMILES box above, or turn the design into shapes to drag them.</div>`
+    : `<div class="hint">This generator uses its default parameters.</div>`;
 }
 
 // ---------------------------------------------------------- server calls
@@ -424,11 +480,14 @@ async function api(path, body) {
     headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return r.json();
 }
-let vTimer = null;
+let vTimer = null, vSeq = 0;
 function scheduleValidate() { clearTimeout(vTimer); vTimer = setTimeout(validate, 350); }
 async function validate() {
+  const seq = ++vSeq;
   const res = await api("/api/pattern", specForServer());
+  if (seq !== vSeq) return res.ok;               // a newer edit is already on its way
   if (isGenerator() && res.pattern) { genPattern = res.pattern; redraw(); }
+  if (document.activeElement !== $("ksCode")) $("ksCode").value = res.kirismiles || "";
   showMsgs(res.errors && res.errors.length ? res.errors.map((e) => ["err", e])
                                            : [["ok", "Design is valid."]]);
   return res.ok;
@@ -571,6 +630,19 @@ $("btnToShapes").onclick = () => {
 };
 ["name", "L", "W", "h", "E", "nu", "strain", "steps", "hcut"].forEach((id) =>
   $(id).addEventListener("input", () => { readForm(); redraw(); scheduleValidate(); }));
+let ksTimer = null;
+function applyKiriSMILES() {               // draw the design typed in the KiriSMILES box
+  clearTimeout(ksTimer);
+  const code = $("ksCode").value.trim();
+  if (!code) return;
+  if (!(spec.pattern.generator === "kirismiles")) genPattern = null;
+  spec.pattern = { generator: "kirismiles", params: { code } };
+  shapes = []; selected = -1;
+  renderGenerator(); validate();
+}
+$("ksCode").addEventListener("input", () => { clearTimeout(ksTimer); ksTimer = setTimeout(applyKiriSMILES, 400); });
+$("ksCode").addEventListener("keydown", (e) => { if (e.key === "Enter") applyKiriSMILES(); });
+$("btnKs").onclick = applyKiriSMILES;
 $("btnBuckle").onclick = quickCheck; $("btnRun").onclick = runFEM;
 $("btnExport").onclick = exportCut; $("btnSpec").onclick = downloadSpec;
 $("btnCancel").onclick = () => currentJob && api(`/api/jobs/${currentJob}/cancel`, {});
