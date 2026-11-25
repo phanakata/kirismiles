@@ -10,6 +10,7 @@ results/schematics/
 # generated / local
 .cache/
 build/
+*.egg-info/
 logs/
 results/runs/
 results/kdb/

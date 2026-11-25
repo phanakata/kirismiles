@@ -87,20 +87,45 @@ git clone https://github.com/phanakata/kirismiles.git
 cd kirismiles
 python -m venv .venv
 source .venv/bin/activate              # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-pip install pytest "mcp>=2.3,<3"       # optional: tests and the MCP server
-pip install pydantic ruff mypy         # optional: database records, lint and type checks
+pip install -e .                       # the dependencies and the `kirismiles` command
+pip install -e ".[dev]"                # optional: tests, MCP server, database records, lint, types
 docker pull dolfinx/dolfinx:v0.9.0     # optional: otherwise the first simulation pulls it
 ```
+
+`pip install -r requirements.txt` still works too; then use `python scripts/kirigami_cli.py`
+wherever this README writes `kirismiles`.
 
 ### Getting started
 
 ```bash
-python -m pytest -q                                            # run the tests (ruff check . and mypy as in CI)
-python scripts/kirigami_cli.py validate specs/alternating.json # check a design
-python scripts/kirigami_cli.py simulate specs/alternating.json # run it (minutes; needs Docker)
-python webapp/server.py                                        # or use the web app, at localhost:8000
+python -m pytest -q                            # run the tests (ruff check . and mypy as in CI)
+kirismiles validate specs/alternating.json     # check a design
+kirismiles simulate specs/alternating.json     # run it (minutes; needs Docker)
+python webapp/server.py                        # or use the web app, at localhost:8000
 ```
+
+A simulation prints its progress while it runs, one row per load step, and keeps the full
+solver output in `results/runs/<name>/log.txt`:
+
+```
+Job started  2026-11-24 23:33:24   simulate progress_demo
+log: results/runs/progress_demo/log.txt
+mesh: 18,280 triangles   material: E = 3500 MPa, nu = 0.38, h = 0.127 mm
+stiffness: 7.903 N/mm   buckling: Delta_c = 0.08228 mm (strain 0.0686 %)
+ step   Delta(mm)  strain(%)     F(N)   max|w|(mm)    e_loc   time(s)
+    1      0.0411      0.034    0.3252       0.0000    0.0008      13.8
+    2      0.0864      0.072    0.6551       0.0922    0.0024      41.1
+  ...
+   14     24.0000     20.000    2.8096       7.4604    0.1489     468.5
+files: results/runs/progress_demo/history.npz
+       results/runs/progress_demo/deformation.gif
+       results/runs/progress_demo/log.txt
+Job ended    2026-11-24 23:41:24   completed in 8 min 0 s
+{"ok": true, "name": "progress_demo", ...}
+```
+
+The progress goes to stderr and the last line, on stdout, is the JSON result that scripts and
+agents read. `--print-every N` prints every N-th step, `--quiet` only the JSON line.
 
 The command line takes a design as a JSON **spec**. The KiriSMILES string goes inside it, as
 `"pattern": {"generator": "kirismiles", "params": {"code": "<string>"}}`, next to the sheet,

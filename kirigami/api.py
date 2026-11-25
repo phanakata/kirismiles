@@ -8,6 +8,11 @@ Run inside the FEniCSx container:
 Each prints a JSON summary on the last line of stdout and writes its outputs
 to results/runs/<name>/. scripts/kirigami_cli.py wraps these for use from the
 host, e.g. by agents.
+
+Progress (the mesh, the buckling load, one table row per load step)
+goes to stderr, so stdout stays machine-readable. The environment
+variable KIRISMILES_PRINT_EVERY sets how often a row is printed: every N-th step
+(default 1); 0 prints no rows.
 """
 from __future__ import annotations
 
@@ -33,6 +38,31 @@ RUNS = Path("results/runs")
 
 class _Stop(Exception):
     """Raised by an observer to end the load ramp early on purpose."""
+
+
+def _say(msg: str) -> None:
+    """A progress line on stderr (stdout carries only the JSON summary)."""
+    print(msg, file=sys.stderr, flush=True)
+
+
+def print_every() -> int:
+    """Print a progress row every N-th load step: KIRISMILES_PRINT_EVERY (default 1, 0 = none).
+    An unreadable or negative value falls back to 1, so a typo never stops a run."""
+    try:
+        n = int(os.environ.get("KIRISMILES_PRINT_EVERY", "1"))
+    except ValueError:
+        return 1
+    return n if n >= 0 else 1
+
+
+PROGRESS_HEADER = " step   Delta(mm)  strain(%)     F(N)   max|w|(mm)    e_loc   time(s)"
+
+
+def progress_row(step: int, delta: float, L: float, force: float, uz_max: float, eloc: float,
+               seconds: float) -> str:
+    """One row of the progress table; lengths in mm, force in N, eloc dimensionless."""
+    return (f"{step:5d} {delta:11.4f} {100 * delta / L:10.3f} {force:9.4f} {uz_max:12.4f}"
+            f" {eloc:9.4f} {seconds:9.1f}")
 
 
 def _mesh_and_material(spec: Spec) -> tuple[Any, Any]:
@@ -75,8 +105,11 @@ def buckle(spec: Spec, nev: int = 4) -> Summary:
     t0 = time.time()
     out = S.run_folder(RUNS, spec)
     sh = _sheet(spec)
+    _say(f"mesh: {sh.msh.topology.index_map(2).size_local:,} triangles")
     _, N1, F1 = sh.solve_inplane(1.0)
+    _say(f"stiffness: {F1:.4g} N/mm")
     lams, modes = sh.linear_buckling(N1, nev=nev)
+    _say("buckling: Delta_c = " + (", ".join(f"{v:.4g}" for v in lams) + " mm" if lams else "none found"))
     V1 = fem.functionspace(sh.msh, ("Lagrange", 1))
     m1 = fem.Function(V1)
     _, x, cells = _p1_mesh(sh.msh)
@@ -162,6 +195,8 @@ def simulate(spec: Spec) -> Summary:
     sh = _shell(spec)
     msh, mat, L = sh.msh, sh.mat, spec["sheet"]["L"]
     bnd = sh.boundary
+    _say(f"mesh: {msh.topology.index_map(2).size_local:,} triangles   "
+         f"material: E = {mat.E:g} MPa, nu = {mat.nu:g}, h = {mat.h:g} mm")
     # The linear stiffness and buckling estimate (which seeds the out-of-plane
     # branch) always use the clamped condition; for other boundary types they
     # are only a guide. A purely in-plane model cannot buckle.
@@ -171,6 +206,8 @@ def simulate(spec: Spec) -> Summary:
         Dc, mode = lams[0], modes[0]
     else:                                  # no compression anywhere: the sheet stays flat
         Dc, mode = np.inf, fem.Function(sh.W)
+    _say(f"stiffness: {F1:.4g} N/mm   buckling: "
+         + (f"Delta_c = {Dc:.4g} mm (strain {100 * Dc / L:.3g} %)" if np.isfinite(Dc) else "none"))
     sign = float(spec.get("imperfection_sign", 1.0))
     ell = spec.get("ell", min(spec["sheet"]["W"], 30.0))   # length scale for the seed amplitude
 
@@ -205,6 +242,9 @@ def simulate(spec: Spec) -> Summary:
         X, Ginv, orient, pairs, dist = tg
         hist["eloc"].append(float(ST.local_strain(X, hist["U"][-1].astype(float), cells, Ginv,
                                                   orient, pairs, dist, mat.h).max()))
+        k = len(hist["Delta"])
+        if every and (k % every == 0 or k == 1 or D >= Deltas[-1] * (1 - 1e-9)):   # always the last
+            _say(progress_row(k, D, L, s.force, hist["uz_max"][-1], hist["eloc"][-1], time.time() - t0))
         np.savez(out / "history.npz", L=L, W=spec["sheet"]["W"], h=mat.h, Delta_c=Dc, F_unit=F1,
                  x=x, cells=cells, probe_names=np.array(list(names)),
                  **{k: np.array(v) for k, v in hist.items()})
@@ -218,6 +258,11 @@ def simulate(spec: Spec) -> Summary:
         Deltas = np.concatenate([[0.5 * Dc], np.geomspace(1.05 * Dc, Dmax, n)])
     else:                                  # flat sheets can yield below 1 %: start small
         Deltas = np.geomspace(1e-3 * Dmax, Dmax, n)
+    every = print_every()
+    _say(f"load: {len(Deltas)} steps planned to Delta = {Dmax:g} mm"
+         " (the solver adds smaller steps where Newton needs them)")
+    if every:
+        _say(PROGRESS_HEADER)
     status = "completed"
     try:
         sh.solve(Deltas, f_imp=f_imp, observers=(record,), predictor=seed)
@@ -225,6 +270,7 @@ def simulate(spec: Spec) -> Summary:
         status = f"stopped early: {e}"
     except _Stop as e:
         status = f"stopped at target: {e}"
+    _say(f"status: {status}")
     probes = np.array(hist["probes"])
     summary = dict(name=spec["name"], analysis="simulate", status=status, boundary=bnd,
                    Delta_c_mm=Dc, stiffness_N_per_mm=F1, steps=len(hist["Delta"]),

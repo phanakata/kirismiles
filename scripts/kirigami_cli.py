@@ -16,6 +16,13 @@ of the spec that produced them.
 buckle / simulate / stl / mesh (and export of patterns with solids) run in the FEniCSx
 Docker container automatically; the rest needs only numpy + matplotlib.
 
+After `pip install -e .` the same commands are available as `kirismiles <command>`.
+
+Progress: the solver commands print "Job started" / "Job ended" lines, the solver's
+progress (for simulate, one row per load step) and the files
+written, all on stderr; --print-every N prints every N-th step, --quiet only the JSON line.
+Everything the solver prints is also saved to results/runs/<name>/log.txt.
+
 Exit status: 0 when the JSON line was printed (check its "ok"), 1 when the command could
 not run at all (an unreadable spec, Docker missing); a JSON line with ok=false is printed
 then too.
@@ -25,8 +32,11 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
+import os
 import subprocess
 import sys
+import threading
+import time
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -36,7 +46,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from kirigami import spec as S  # noqa: E402
-from kirigami.argtypes import positive  # noqa: E402
+from kirigami.argtypes import count0, positive  # noqa: E402
 
 from kirigami.provenance import IMAGE  # noqa: E402  (one place for the solver image)
 CONTAINER_PYTHONPATH = "/work:/usr/local/dolfinx-real/lib/python3.12/dist-packages:/usr/local/lib"
@@ -69,34 +79,112 @@ def stage_spec(spec: dict[str, Any]) -> str:
     return p.relative_to(ROOT).as_posix()
 
 
-def in_container(args: Sequence[str], name: str | None = None) -> Result:
+def rel(p: Path) -> str:
+    """p relative to the repository when it is inside it, else as given."""
+    try:
+        return p.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return p.as_posix()
+
+
+def log_path(args: Sequence[str]) -> Path | None:
+    """results/runs/<name>/log.txt for a solver command whose second argument is the
+    staged spec (stage_spec), else None."""
+    if len(args) > 1 and args[1].endswith("spec.json"):
+        return (ROOT / args[1]).parent / "log.txt"
+    return None
+
+
+def in_container(args: Sequence[str], name: str | None = None, echo: bool = False,
+                 print_every: int = 1) -> Result:
     """Run python3 -m kirigami.api <args> in the FEniCSx container (or directly
     if we already are in one) and return its JSON result. `name` names the
-    container, so that it can be stopped with `docker stop <name>`."""
+    container, so that it can be stopped with `docker stop <name>`.
+
+    Everything the solver prints is saved to log.txt in the run folder as it comes;
+    with echo=True its progress (stderr) is also shown live on our stderr. Our stdout
+    is left alone: the caller prints the one JSON line. print_every: a progress row every
+    print_every-th load step (0: none), passed to the solver as KIRISMILES_PRINT_EVERY."""
+    if print_every < 0:
+        raise ValueError(f"print_every must be 0 (no rows) or a positive step interval, not {print_every}")
     try:
         import dolfinx  # noqa: F401
         cmd = [sys.executable, "-m", "kirigami.api", *args]
+        env = dict(os.environ, KIRISMILES_PRINT_EVERY=str(print_every), PYTHONUNBUFFERED="1")
     except ImportError:
         cmd = ["docker", "run", "--rm", "--init", "--label", "kirigami=1", "--memory", "3g",
                *(["--name", name] if name else []),
                "-v", f"{ROOT}:/work", "-v", f"{ROOT / '.cache'}:/root/.cache/fenics",
                "-w", "/work", "-e", f"PYTHONPATH={CONTAINER_PYTHONPATH}",
-               "-e", "OMP_NUM_THREADS=1", IMAGE, "python3", "-m", "kirigami.api", *args]
+               "-e", "OMP_NUM_THREADS=1", "-e", "PYTHONUNBUFFERED=1",
+               "-e", f"KIRISMILES_PRINT_EVERY={print_every}",
+               IMAGE, "python3", "-m", "kirigami.api", *args]
+        env = None
+    log = log_path(args)
     try:
-        r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+        p = subprocess.Popen(cmd, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, encoding="utf-8", errors="replace", bufsize=1)
     except FileNotFoundError:
         return dict(ok=False, error="Docker is not installed (the solver runs in the "
                                     f"{IMAGE} container)")
-    lines = [ln for ln in r.stdout.strip().splitlines() if ln.startswith("{")]
-    if r.returncode != 0 or not lines:
-        return dict(ok=False, error=f"solver exited with code {r.returncode}",
-                    log_tail=(r.stdout + r.stderr).strip().splitlines()[-15:])
+    out_lines: list[str] = []
+    err_lines: list[str] = []
+    lock = threading.Lock()
+    logf = open(log, "w", encoding="utf-8") if log else None
+
+    def keep(line: str) -> None:
+        with lock:
+            if logf:
+                logf.write(line)
+                logf.flush()
+
+    def pump_stderr() -> None:            # progress, warnings, tracebacks
+        assert p.stderr is not None
+        for line in p.stderr:
+            err_lines.append(line)
+            keep(line)
+            if echo:
+                sys.stderr.write(line)
+                sys.stderr.flush()
+
+    t = threading.Thread(target=pump_stderr, daemon=True)
+    t.start()
+    try:
+        assert p.stdout is not None
+        for line in p.stdout:             # the JSON summary, plus anything a library prints
+            out_lines.append(line)
+            keep(line)
+        p.wait()
+        t.join()
+    finally:
+        if logf:
+            logf.close()
+    stdout = "".join(out_lines)
+    lines = [ln for ln in stdout.strip().splitlines() if ln.startswith("{")]
+    tail = (stdout + "".join(err_lines)).strip().splitlines()[-15:]
+    log_rel = {"log": rel(log)} if log else {}
+    if p.returncode != 0 or not lines:
+        return dict(ok=False, error=f"solver exited with code {p.returncode}", log_tail=tail, **log_rel)
     try:
         out = json.loads(lines[-1])
     except ValueError:
-        return dict(ok=False, error="the solver's last line is not valid JSON",
-                    log_tail=r.stdout.strip().splitlines()[-15:])
-    return dict(ok=True, **out)
+        return dict(ok=False, error="the solver's last line is not valid JSON", log_tail=tail, **log_rel)
+    return dict(ok=True, **out, **log_rel)
+
+
+def say(msg: str) -> None:
+    """A human-readable line on stderr; stdout keeps its single JSON line."""
+    print(msg, file=sys.stderr, flush=True)
+
+
+def stamp() -> str:
+    return time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def duration(seconds: float) -> str:
+    m, s = divmod(int(round(seconds)), 60)
+    h, m = divmod(m, 60)
+    return f"{h} h {m} min {s} s" if h else f"{m} min {s} s" if m else f"{s} s"
 
 
 def cmd_generators(_: argparse.Namespace) -> None:
@@ -181,23 +269,56 @@ def cmd_import(a: argparse.Namespace) -> None:
 
 
 def cmd_mesh(a: argparse.Namespace) -> None:
-    emit(_solver("mesh", a))
+    res = _solver("mesh", a)
+    job_ended(a, res)
+    emit(res)
 
 
 def _solver(cmd: str, a: argparse.Namespace, *extra: str) -> Result:
+    """Validate, stage and run one solver command. Unless --quiet, frame it with
+    "Job started" / "Job ended" lines and show the solver's progress, all on stderr."""
     spec = S.load(a.spec)
     errs = S.validate(spec)
     if errs:
         return dict(name=spec["name"], ok=False, errors=errs)
-    return in_container([cmd, stage_spec(spec), *extra])
+    staged = stage_spec(spec)
+    echo = not a.quiet
+    t0 = time.time()
+    if echo:
+        say(f"Job started  {stamp()}   {cmd} {spec['name']}")
+        log = log_path([cmd, staged])
+        if log:
+            say(f"log: {rel(log)}")
+    res = in_container([cmd, staged, *extra], echo=echo, print_every=a.print_every)
+    a._t0 = t0                                     # for job_ended(), after any post-processing
+    return res
+
+
+def job_ended(a: argparse.Namespace, res: Result) -> None:
+    """The closing lines (files written, end time, duration) unless --quiet."""
+    if a.quiet:
+        return
+    files = [str(f) for f in res.get("files", [])]
+    if res.get("log"):
+        files.append(res["log"])
+    for i, f in enumerate(files):
+        say(("files: " if i == 0 else "       ") + Path(f).as_posix())
+    state = "completed" if res.get("ok") else "FAILED: " + str(res.get("error") or res.get("errors"))
+    t0 = getattr(a, "_t0", None)
+    took = f" in {duration(time.time() - t0)}" if t0 else ""
+    say(f"Job ended    {stamp()}   {state}{took}")
 
 
 def cmd_stl(a: argparse.Namespace) -> None:
-    emit(_solver("stl", a, str(a.thickness), str(a.kerf)))
+    res = _solver("stl", a, str(a.thickness), str(a.kerf))
+    job_ended(a, res)
+    emit(res)
 
 
 def cmd_buckle(a: argparse.Namespace) -> None:
-    emit(_solver("buckle", a))
+    res = _solver("buckle", a)
+    job_ended(a, res)
+    emit(res)
 
 
 def cmd_simulate(a: argparse.Namespace) -> None:
@@ -206,8 +327,11 @@ def cmd_simulate(a: argparse.Namespace) -> None:
         import make_gif
         name = res["name"]
         d = ROOT / "results" / "runs" / name
+        if not a.quiet:
+            say("rendering deformation.gif ...")
         make_gif.make(name, src=d / "history.npz", dst=d / "deformation.gif")
         res["files"] = res.get("files", []) + [(d / "deformation.gif").relative_to(ROOT).as_posix()]
+    job_ended(a, res)
     emit(res)
 
 
@@ -216,10 +340,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("generators").set_defaults(fn=cmd_generators)
+    def progress_options(p: argparse.ArgumentParser) -> None:
+        p.add_argument("--quiet", action="store_true",
+                       help="print only the JSON line (no start/end lines, no progress)")
+        p.add_argument("--print-every", type=count0, default=1, metavar="N",
+                       help="a progress row every N load steps (0: none; default 1)")
+
     for name, fn in (("validate", cmd_validate), ("preview", cmd_preview), ("export", cmd_export),
                      ("buckle", cmd_buckle), ("mesh", cmd_mesh)):
         p = sub.add_parser(name)
         p.add_argument("spec")
+        if name in ("buckle", "mesh"):
+            progress_options(p)
         p.set_defaults(fn=fn)
     p = sub.add_parser("import", help="convert a laser-cut file (.svg, .dxf) to a string")
     p.add_argument("file")
@@ -234,10 +366,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     p.add_argument("spec")
     p.add_argument("--thickness", type=positive, default=0.5, help="mm")
     p.add_argument("--kerf", type=positive, default=0.4, help="slot width replacing each slit, mm")
+    progress_options(p)
     p.set_defaults(fn=cmd_stl)
     p = sub.add_parser("simulate")
     p.add_argument("spec")
     p.add_argument("--no-gif", action="store_true")
+    progress_options(p)
     p.set_defaults(fn=cmd_simulate)
     a = ap.parse_args(argv)
     try:

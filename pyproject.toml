@@ -1,4 +1,33 @@
-# Tool settings only: the code is used from a checkout (see README), not installed as a package.
+# The code is used from a checkout (see README). `pip install -e .` installs its host-side
+# dependencies and the `kirismiles` command; the solver runs in the FEniCSx Docker image.
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kirismiles"
+version = "0.2.1"
+description = "A line notation and open platform for kirigami design, simulation, and AI agents"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = ["numpy", "scipy", "matplotlib", "Pillow"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+mcp = ["mcp>=2.3,<3"]
+dev = ["pytest", "ruff", "mypy", "pydantic", "mcp>=2.3,<3"]
+mujoco = ["mujoco>=4.0.1"]
+
+[project.scripts]
+kirismiles = "kirigami.cli:main"
+
+[project.urls]
+Repository = "https://github.com/phanakata/kirismiles"
+
+[tool.setuptools]
+packages = ["kirigami"]                # scripts/, webapp/, mcp_server/ stay in the checkout
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]                # scripts/smoke_test.py etc. need the FEniCSx solver
@@ -41,6 +70,7 @@ files = [
     "webapp/server.py",
     "mcp_server/server.py",
     "kirigami/argtypes.py",
+    "kirigami/cli.py",
     "scripts/kirigami_cli.py",
     "scripts/make_gif.py",
     "scripts/compare_designs.py",
