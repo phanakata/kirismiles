@@ -51,6 +51,7 @@ from typing import IO, Any
 import numpy as np
 
 from kirigami._types import Spec, Summary
+from kirigami.stiffness import from_history as stiffness_fit
 
 Job = dict[str, Any]        # a job record: id, name, state, message, progress, ..., result, spec
 
@@ -233,9 +234,17 @@ def analyse_run(name: str, eps_y: float = 0.02) -> dict[str, Any]:
     out = RUNS / name / "stress_strain.png"
     fig.savefig(out, dpi=130)
     plt.close(fig)
-    return dict(stretchability=r["stretch"], stretchability_note=r["note"],
-                stress_at_stretchability_MPa=r["sigma_star"], initial_modulus_MPa=r["E_eff"],
-                plot=rel(out))
+    out_d = dict(stretchability=r["stretch"], stretchability_note=r["note"],
+                 stress_at_stretchability_MPa=r["sigma_star"], initial_modulus_MPa=r["E_eff"],
+                 plot=rel(out))
+    try:                                   # stiffness before and after buckling (N/mm)
+        fit = stiffness_fit(RUNS / name / "history.npz")
+        out_d.update(stiffness_before_buckling_N_per_mm=fit["k_before_N_per_mm"],
+                     stiffness_after_buckling_N_per_mm=fit["k_after_N_per_mm"],
+                     stiffness_fit_range_pct=[fit["fit_from_pct"], fit["fit_to_pct"]])
+    except (KeyError, ValueError):         # no buckling stretch stored, or a run under 1 % strain
+        pass
+    return out_d
 
 
 def finish_run(name: str, res: Summary) -> Summary:

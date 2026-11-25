@@ -110,8 +110,11 @@ pat = ks.pattern(code, L=120, W=60)  # {"cuts": [50 polylines], "holes": [], "so
 ## Web app: Kirigami FEM Studio
 
 ```bash
-python webapp/server.py        # then open http://localhost:8000   (Docker must be running)
+python webapp/server.py        # then open http://localhost:8000   (Docker for simulations)
 ```
+
+Ctrl+C in the same terminal stops it. The README has [step-by-step instructions](README.md#using-the-web-app)
+for starting and stopping it without command-line experience.
 
 ### Typing a KiriSMILES string
 

@@ -281,6 +281,12 @@ class Handler(BaseHTTPRequestHandler):
         return self.send_error_json(404, "not found")
 
 
+class AppServer(ThreadingHTTPServer):
+    """The app's HTTP server. On Windows, address reuse would let a second copy of the app
+    bind the same port and share it with the first, so it is turned off there."""
+    allow_reuse_address = sys.platform != "win32"
+
+
 def _port(text: str) -> int:
     import argparse
     try:
@@ -299,11 +305,23 @@ def main() -> None:
     ap.add_argument("--host", default="127.0.0.1",
                     help="0.0.0.0 to accept other machines (no authentication: trusted networks only)")
     a = ap.parse_args()
+    try:
+        srv = AppServer((a.host, a.port), Handler)
+    except OSError:
+        print(f"Port {a.port} is already in use. The app may already be running: open "
+              f"http://localhost:{a.port} in your browser. Or start it on another port: "
+              f"python webapp/server.py --port {a.port + 1}", file=sys.stderr)
+        raise SystemExit(1) from None
     global RUNNER
     RUNNER = jobs.Runner("web")
-    srv = ThreadingHTTPServer((a.host, a.port), Handler)
-    print(f"Kirigami FEM app on http://localhost:{a.port}  (Ctrl+C to stop)")
-    srv.serve_forever()
+    print(f"Kirigami FEM app on http://localhost:{a.port}  (open it in your browser)", flush=True)
+    print("To stop the app, press Ctrl+C in this window.", flush=True)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("Kirigami FEM app stopped.", flush=True)
+    finally:
+        srv.server_close()
 
 
 if __name__ == "__main__":

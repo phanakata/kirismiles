@@ -589,6 +589,11 @@ function showResult(r) {
       <tr><td>final stretch Δ/L</td><td>${fmt(r.strain_final, 4)}</td></tr>
       <tr><td>max out-of-plane displacement</td><td>${fmt(r.uz_max_final_mm, 2)} mm</td></tr>
       <tr><td>final force</td><td>${fmt(r.force_N ? r.force_N[r.force_N.length - 1] : null, 3)} N</td></tr>
+      ${a.stiffness_before_buckling_N_per_mm != null ? `<tr><td>stiffness before buckling</td>
+        <td>${fmt(a.stiffness_before_buckling_N_per_mm, 3)} N/mm</td></tr>` : ""}
+      ${a.stiffness_after_buckling_N_per_mm != null ? `<tr><td>stiffness after buckling
+        (line fit, ${fmt(a.stiffness_fit_range_pct[0], 1)}–${fmt(a.stiffness_fit_range_pct[1], 1)} % strain)</td>
+        <td>${fmt(a.stiffness_after_buckling_N_per_mm, 4)} N/mm</td></tr>` : ""}
       ${a.stretchability !== undefined ? `<tr><td>stretchability (local strain 2%)</td>
         <td>${fmt(100 * a.stretchability, 2)} %${a.stretchability_note ? " (" + escapeHtml(a.stretchability_note) + ")" : ""}</td></tr>` : ""}
       ${angles}

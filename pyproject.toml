@@ -61,6 +61,7 @@ files = [
     "kirigami/geometry.py",
     "kirigami/export.py",
     "kirigami/strain.py",
+    "kirigami/stiffness.py",
     "kirigami/fvk.py",
     "kirigami/shell.py",
     "kirigami/tube.py",

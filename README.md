@@ -97,12 +97,66 @@ wherever this README writes `kirismiles`.
 
 ### Getting started
 
+**New here?** The [tutorials](tutorials/README.md) walk through one complete example, from the
+design to its stiffness, three ways: the command line, the web app, and an AI assistant.
+
 ```bash
 python -m pytest -q                            # run the tests (ruff check . and mypy as in CI)
 kirismiles validate specs/alternating.json     # check a design
 kirismiles simulate specs/alternating.json     # run it (minutes; needs Docker)
-python webapp/server.py                        # or use the web app, at localhost:8000
+python webapp/server.py                        # or use the web app (next section)
 ```
+
+### Using the web app
+
+The web app runs in your browser, so after it is started no commands are needed. It runs on
+your own computer; nothing is sent to the internet.
+
+**Start it**
+
+1. Start **Docker Desktop** if you want to run simulations. Drawing and checking designs work
+   without it.
+2. Open a terminal in the `kirismiles` folder. In VS Code: *Terminal → New Terminal*. On
+   Windows you can also right-click the folder in Explorer and choose *Open in Terminal*; on
+   macOS, open *Terminal* and type `cd ` followed by the folder's path.
+3. Type the line for your system and press Enter:
+
+   | System | Command |
+   |---|---|
+   | Windows (PowerShell or Command Prompt) | `.venv\Scripts\python webapp\server.py` |
+   | Windows (Git Bash) | `.venv/Scripts/python webapp/server.py` |
+   | macOS, Linux | `.venv/bin/python webapp/server.py` |
+
+   These use the Python of the `.venv` made during installation, so there is no need to
+   activate it first.
+4. The terminal prints
+
+   ```
+   Kirigami FEM app on http://localhost:8000  (open it in your browser)
+   To stop the app, press Ctrl+C in this window.
+   ```
+
+   Open **http://localhost:8000** in your browser. Leave the terminal open: the app runs as long
+   as that window does.
+
+**Stop it**
+
+- Click in the terminal window and press **Ctrl+C** (also on macOS: Control, not Command). The
+  terminal prints `Kirigami FEM app stopped.` Closing the terminal window stops it as well.
+- Let a running simulation finish, or press **Cancel** under its progress bar, before you stop
+  the app.
+- Closing the browser tab does not stop the app. Open http://localhost:8000 again to return
+  to it.
+
+**If something goes wrong**
+
+- *Port 8000 is already in use*: the app is probably still running in another terminal, so open
+  http://localhost:8000. Or start a second copy on another port by adding `--port 8001` to the
+  command, and open http://localhost:8001.
+- *is not recognized* or *No such file or directory*: the terminal is not in the `kirismiles` folder, or the `.venv` was
+  not created; see [Steps](#steps).
+
+[TOOLS.md](TOOLS.md#web-app-kirigami-fem-studio) shows what each part of the page does.
 
 A simulation prints its progress while it runs, one row per load step, and keeps the full
 solver output in `results/runs/<name>/log.txt`:
@@ -522,6 +576,7 @@ paper is checked by `scripts/check_strings.py`.
 ```
 BENCHMARK.md           validation of the simulation engine: models, mesh, loading, results, limits
 TOOLS.md               command line, Python API, web app and MCP server
+tutorials/             step-by-step walkthroughs: command line, web app, AI assistant (MCP)
 KIRISMILES.md          the notation: specification, with figures
 kirigami/kirismiles.py  parse, canonical form, geometry key, validity checks
 kirigami/grammar.py    lattice form of the notation: encode/decode, cut-set hash, features

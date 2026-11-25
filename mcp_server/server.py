@@ -38,6 +38,7 @@ from mcp_types import ToolAnnotations  # noqa: E402
 from kirigami import jobs  # noqa: E402
 from kirigami import kirismiles as ks  # noqa: E402
 from kirigami import spec as S  # noqa: E402
+from kirigami.stiffness import from_history as stiffness_fit  # noqa: E402
 
 RUNS = jobs.RUNS
 READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=False)
@@ -151,6 +152,9 @@ def summarize(job: jobs.Job | None) -> dict[str, Any]:
             "final_stretch_Delta_over_L": res.get("strain_final"),
             "max_out_of_plane_mm": res.get("uz_max_final_mm"),
             "final_force_N": force[-1],
+            "stiffness_before_buckling_N_per_mm": a.get("stiffness_before_buckling_N_per_mm"),
+            "stiffness_after_buckling_N_per_mm": a.get("stiffness_after_buckling_N_per_mm"),
+            "stiffness_fit_range_pct": a.get("stiffness_fit_range_pct"),
             "stretchability": a.get("stretchability"),
             "stretchability_note": a.get("stretchability_note"),
             "files": res.get("files"),
@@ -467,6 +471,12 @@ def show_run(name: str) -> list[str | Image]:
             s.pop("force_N", None)                  # long series; the plot shows it
             s.pop("Delta_mm", None)
             out.append(json.dumps(s, indent=1))
+    if (d / "history.npz").exists():
+        try:
+            fit = stiffness_fit(d / "history.npz")
+            out.append("stiffness, fitted to the force history (N/mm): " + json.dumps(fit))
+        except (KeyError, OSError, ValueError):     # no buckling stretch stored, or under 1 % strain
+            pass
     if (d / "spec.json").exists():
         out.append("spec: " + (d / "spec.json").read_text())
     if (d / "deformation.gif").exists():
