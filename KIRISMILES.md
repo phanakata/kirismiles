@@ -158,6 +158,9 @@ Pieces are joined by `;`. There are three kinds of piece:
 - **holes** remove material;
 - **solids** add material back after all holes are cut.
 
+Cuts are made last, so a cut runs through a solid it crosses. Where a cut runs into a hole it
+ends at the hole's edge and opens there; the part inside the hole is dropped.
+
 ![Building blocks of the free form](results/kirismiles/pieces.png)
 
 | Piece | Meaning |

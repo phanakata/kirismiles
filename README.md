@@ -256,7 +256,8 @@ and the loading to clamped ends; both can be set to whatever a study needs (see
 **From Python.** `kirigami/geometry.py` provides `tile`, `translate`, `merge` and `clip_to_sheet`,
 to build arrays from any unit pattern.
 
-Designs can also be drawn by hand in the [web app](TOOLS.md#web-app-kirigami-fem-studio).
+Designs can also be typed as strings or drawn by hand in the
+[web app](TOOLS.md#web-app-kirigami-fem-studio), which shows the string of any design on its canvas.
 
 ## 3. Simulation engine and validation
 

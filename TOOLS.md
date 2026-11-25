@@ -113,6 +113,14 @@ pat = ks.pattern(code, L=120, W=60)  # {"cuts": [50 polylines], "holes": [], "so
 python webapp/server.py        # then open http://localhost:8000   (Docker must be running)
 ```
 
+### Typing a KiriSMILES string
+
+The **KiriSMILES** box above the canvas takes a design as a string, for example
+`P5x45S1/2O0[V42@0,0]N18E3`. The pattern is drawn as you type; **Render** or Enter draws it at
+once. If the string cannot be read, the last good drawing stays and the reason is shown below the
+settings. The box also shows the string of whatever is on the canvas, a sample or your own
+drawing, so a design drawn by hand can be copied out as a string.
+
 ### Starting from a sample
 
 ![The web app with a sample loaded and a finished run](results/tools/webapp_sample.png)
@@ -120,8 +128,8 @@ python webapp/server.py        # then open http://localhost:8000   (Docker must 
 1. **Samples.** A gallery of every spec in `specs/`. Click one to load it. The **Runs** tab
    lists previous results, and **+ New** starts an empty sheet.
 2. **Generator parameters.** Generator-based samples show their parameters as a form. Editing a
-   parameter redraws the pattern. **Edit as shapes** turns the sample into freely editable
-   geometry.
+   parameter redraws the pattern; samples written as KiriSMILES strings are edited in the
+   KiriSMILES box instead. **Edit as shapes** turns the sample into freely editable geometry.
 3. **The sheet.** Red lines are cuts, white areas are holes, and darker grey areas are solids
    added back inside holes. The blue edges are the clamped end (left) and the pulled end
    (right).
@@ -145,7 +153,11 @@ python webapp/server.py        # then open http://localhost:8000   (Docker must 
    rectangles or ellipses. **shape adds** sets whether a rectangle or ellipse is a hole or a solid
    added back inside a hole. Shapes snap to the grid set by **snap**.
 2. **Canvas.** With a drawing tool, drag to draw a shape. With **Select**, click a shape to
-   select it and drag to move it. Delete removes the selected shape.
+   select it and drag to move it. Delete removes the selected shape. Where shapes overlap:
+   - a solid drawn after a cut closes the cut where it covers it; a cut drawn after a solid
+     cuts through it;
+   - a cut ends where it meets a hole (the part inside the hole is not drawn);
+   - solids always fill holes, in whichever order they were drawn.
 3. **Selected shape.** The exact numbers of the selected shape, in mm, for precise editing.
    Here one slit was turned horizontal so that it runs into an edge crack.
 4. **Live check.** The crossing is reported at once: zero-width cuts may not meet, so where they
@@ -164,7 +176,7 @@ The browser app is a client of a small JSON API, which scripts can use directly:
 |---|---|---|
 | `GET /api/samples` | | the specs in `specs/`, with their geometry |
 | `GET /api/generators` | | the pattern generators and their parameters |
-| `POST /api/pattern` | spec | `{"ok", "errors", "pattern", "spec"}`: validation and geometry |
+| `POST /api/pattern` | spec | `{"ok", "errors", "pattern", "spec", "kirismiles"}`: validation, geometry and the design as a string |
 | `POST /api/buckle` | spec | stiffness, Δ_c and F_c (seconds, synchronous) |
 | `POST /api/simulate` | spec | `{"ok", "job", "name"}`: a queued full run |
 | `GET /api/jobs/<id>` | | job state, progress, and the result when done |
@@ -175,7 +187,7 @@ The browser app is a client of a small JSON API, which scripts can use directly:
 
 ```bash
 curl -s -X POST localhost:8000/api/pattern -H "Content-Type: application/json" -d @api_example.json
-# {"ok": true, "errors": [], "pattern": {"cuts": [...50 cuts...], "holes": [], "solids": []}, "spec": {...}}
+# {"ok": true, "errors": [], "pattern": {"cuts": [...50 cuts...], "holes": [], "solids": []}, "spec": {...}, "kirismiles": "..."}
 ```
 
 The server listens on `127.0.0.1` by default. `--host 0.0.0.0` opens it to other machines, but
