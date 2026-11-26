@@ -210,12 +210,19 @@ From these the assistant can explain the result:
 $ python tutorials/fit_stiffness.py tutorial_mcp_1125_102034
 buckling at Delta_c = 0.1000 mm (strain 0.083 %)
 stiffness before buckling  k0 = 0.3527 N/mm   (1 step below Delta_c)
+   one step before buckling: linearity cannot be judged (rerun with "load": {"pre_steps": 5})
+   linear in-plane solve: 0.3527 N/mm (k0 / that = 1.0001)
 stiffness after buckling   k  = 0.0008816 N/mm   (fit over 5 steps, 1 to 5 % strain; F0 = 0.03572 N)
 the sheet is 400 times softer once it has buckled
 wrote results/runs/tutorial_mcp_1125_102034/stiffness.png
 ```
 
-![stiffness.png](img/stiffness.png)
+![stiffness.png](img/stiffness_mcp.png)
+
+This run has a single load step before buckling, so k0 matches the linear solve but a straight
+line through one point cannot show that the response is linear. Ask for `pre_steps: 5` in
+`start_simulation` to get five steps before buckling, as in the
+[command-line tutorial](command_line.md#5-analyse).
 
 ## More to ask
 

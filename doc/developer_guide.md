@@ -71,6 +71,7 @@ requires Docker in v0.2.0.
         kirigami/strain.py    local material strain from saved displacements
         kirigami/export.py    laser-cut files (SVG, DXF) and STL
         kirigami/mjcf.py      the same mesh as a MuJoCo model
+        kirigami/kirchhoff_bend.py   corrected bending for MuJoCo (Kirchhoff plate)
         kirigami/kdb.py       database records (scripts/build_kdb.py builds the database)
         kirigami/provenance.py   which commit and image produced the run
 ```

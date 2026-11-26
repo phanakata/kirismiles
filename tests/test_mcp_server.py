@@ -75,15 +75,17 @@ def test_solver_tools_reject_bad_input_before_the_solver():
         return [await s.call_tool(name, args) for name, args in (
             ("start_simulation", {"code": "V40@0,0", "max_stretch": 0.9}),
             ("start_simulation", {"code": "V40@0,0", "steps": 0}),
+            ("start_simulation", {"code": "V40@0,0", "pre_steps": 0}),
             ("start_simulation", {"code": "V40@0,0", "thickness_mm": -0.1}),
             ("buckle", {"code": "V40@0,0", "thickness_mm": 0}),          # 0 used to mean "default"
             ("check_design", {"code": "V40@0,0", "L": 0}),
             ("job_status", {"job_id": "00000000"}),
             ("wait_for_job", {"job_id": "00000000", "timeout_s": -5}),
         )]
-    stretch, steps, thick, buckle0, sheet, missing, wait = [json.loads(text(r)) for r in call(go)]
+    stretch, steps, pre, thick, buckle0, sheet, missing, wait = [json.loads(text(r)) for r in call(go)]
     assert not stretch["ok"] and "max_stretch" in stretch["errors"][0]
     assert not steps["ok"] and "steps" in steps["errors"][0]
+    assert not pre["ok"] and "pre_steps" in pre["errors"][0]
     assert not thick["ok"] and "h > 0" in thick["errors"][0]
     assert not buckle0["ok"] and "h > 0" in buckle0["errors"][0]
     assert not sheet["valid"] and "L > 0" in sheet["problems"][0]

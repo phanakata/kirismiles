@@ -19,7 +19,10 @@ A spec describes one kirigami sheet completely:
 Optional extras: "material": {"model": "neo_hookean"} (membrane law, default "svk");
 "mesh": {"h_hinge": 0.1, "hinge_gap": 0.8} (fine elements only at the narrow necks,
 so h_cut can be coarse); "load": {"spacing": "linear"} (equal steps instead of the
-default geometric ones, which spend half the steps at very small Delta).
+default geometric ones, which spend half the steps at very small Delta);
+"load": {"pre_steps": 5} (geometric spacing only: 5 equal steps up to 0.95 Delta_c
+before the post-buckling ramp, instead of the default single step at 0.5 Delta_c, so the
+stiffness before buckling is fitted to several points).
 
 Generators are the pattern functions of kirigami/geometry.py; L and W are passed
 from "sheet", everything else from "params". Only numpy is needed here, so specs
@@ -183,6 +186,9 @@ def validate(spec: Spec) -> list[str]:
     steps = load_.get("steps")
     if isinstance(steps, bool) or not isinstance(steps, (int, np.integer)) or steps < 1:
         errs.append("load.steps must be a whole number of at least 1")
+    pre = load_.get("pre_steps", 1)
+    if isinstance(pre, bool) or not isinstance(pre, (int, np.integer)) or not 1 <= pre <= 50:
+        errs.append(f"load.pre_steps must be a whole number from 1 to 50, not {pre!r}")
     b = sec["boundary"]
     if b.get("type") not in BOUNDARY_TYPES:
         errs.append(f"boundary.type must be one of {sorted(BOUNDARY_TYPES)}")

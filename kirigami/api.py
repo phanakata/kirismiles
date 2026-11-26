@@ -179,6 +179,16 @@ def _pair_angles(probes: np.ndarray, names: dict[str, tuple[float, float]]) -> d
     return out
 
 
+def pre_buckling_steps(delta_c: float, n: int = 1) -> np.ndarray:
+    """The load steps (mm) before buckling at delta_c (mm, > 0): one step at 0.5 delta_c
+    for n = 1 (the default, as in all earlier runs), else n equal steps up to 0.95 delta_c."""
+    if not (np.isfinite(delta_c) and delta_c > 0):
+        raise ValueError(f"delta_c must be a positive number of mm, not {delta_c}")
+    if isinstance(n, bool) or not isinstance(n, (int, np.integer)) or not 1 <= n <= 50:
+        raise ValueError(f"the number of pre-buckling steps must be from 1 to 50, not {n!r}")
+    return np.array([0.5 * delta_c]) if n == 1 else np.linspace(0.95 * delta_c / n, 0.95 * delta_c, n)
+
+
 def simulate(spec: Spec) -> Summary:
     """Full nonlinear (Kirchhoff-Love shell) post-buckling under increasing Delta.
 
@@ -187,6 +197,8 @@ def simulate(spec: Spec) -> Summary:
       "load": {"stop_local_strain": 0.02}   end the ramp once the peak local
           material strain (kirigami/strain.py) passes this value; the step that
           crosses it is kept, so the crossing can be interpolated.
+      "load": {"pre_steps": n}   n equal steps up to 0.95 Delta_c before buckling
+          (default 1: a single step at 0.5 Delta_c); geometric spacing only.
     """
     from dolfinx import fem, geometry
     from kirigami import strain as ST
@@ -255,7 +267,8 @@ def simulate(spec: Spec) -> Summary:
     if spec["load"].get("spacing", "geometric") == "linear":   # equal steps from the start
         Deltas = np.linspace(Dmax / n, Dmax, n)
     elif np.isfinite(Dc) and Dc < Dmax:
-        Deltas = np.concatenate([[0.5 * Dc], np.geomspace(1.05 * Dc, Dmax, n)])
+        Deltas = np.concatenate([pre_buckling_steps(Dc, spec["load"].get("pre_steps", 1)),
+                                 np.geomspace(1.05 * Dc, Dmax, n)])
     else:                                  # flat sheets can yield below 1 %: start small
         Deltas = np.geomspace(1e-3 * Dmax, Dmax, n)
     every = print_every()

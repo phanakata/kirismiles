@@ -419,20 +419,29 @@ python scripts/export_mujoco.py --mesh results/runs/<name>/mesh.vtk --L 120 --nu
 it with the FEniCSx engine, and `scripts/mujoco_gif.py` renders a gripper pulling the sheet.
 
 **How far to trust it.** MuJoCo's flex is built for speed, not as a verified plate element. On an
-uncut sheet with the FEniCSx fields imposed (`scripts/pristine_fenics.py`, `scripts/pristine_mujoco.py`),
-MuJoCo 4.0.1 reproduces the in-plane stiffness exactly and simple bending within 2%, but its
-bending has no Poisson coupling: twisting is 1.3× (ν = 0) to 2× (ν = 0.38) too stiff, and bending of
-a plate with free edges up to 22% too stiff at ν = 0.38. The flex also has only linear triangles
-(no quadrilaterals or quadratic elements) and no static solver, so a quasi-static pull is computed by
-dynamic relaxation.
+uncut sheet (`scripts/pristine_fenics.py`, `scripts/pristine_mujoco.py`, `scripts/mujoco_uncut.py`),
+MuJoCo 4.0.1 reproduces the in-plane stiffness exactly and the buckling load under compression within
+1%, but its bending has no Poisson coupling: any deformation with Gaussian curvature costs the energy of
+a plate with ν ≈ −1/3 whatever ν is given, so twisting is 1.3× (ν = 0) to 1.9× (ν = 0.38) too stiff
+([MuJoCo issue 3960](https://github.com/google-deepmind/mujoco/issues/3960)). The flex also has only
+linear triangles and no static solver, so a quasi-static pull is computed by dynamic relaxation.
+
+**Corrected bending.** `scripts/mujoco_check.py --bending kirchhoff` replaces MuJoCo's bending with
+a discrete Kirchhoff plate that has the Poisson coupling (`kirigami/kirchhoff_bend.py`), added through
+MuJoCo's passive-force callback; MuJoCo itself is unchanged and keeps its membrane. On the uncut sheet
+it brings twisting to within 1% and every other test within 2%.
 
 For the alternating pattern `P5x40S1/2O0[V36@0,0]N20E4` (PET, ν = 0.38):
-- Before buckling, MuJoCo is 11% stiffer. About 5% of this comes from linear rather than quadratic
-  elements, about 3% from the coarser mesh, and the rest from the clamp and the relaxation tolerance.
-- Both codes buckle at the same strain.
-- After buckling, the force is 24–26% higher in MuJoCo and the largest deflection 13–25% lower,
-  with the same pattern of tilted flaps.
-- MuJoCo's relaxation stops converging beyond 0.3% strain, so only that range is compared.
+- Before buckling, MuJoCo is 10% stiffer with either bending: linear triangles on a coarser mesh. It
+  falls to 6% on the FEniCSx mesh.
+- Both codes buckle at the same strain, with the same pattern of tilted flaps.
+- After buckling, MuJoCo's built-in bending gives a force 24–26% too high and a largest deflection
+  13–17% too low. The corrected bending gives the force within 2–4% and the deflection within 2%,
+  up to about 4% strain.
+- Beyond about 5% strain, both bendings fall below FEniCSx (−13% in force at 20% strain with the
+  corrected one): both are linear in the node positions, exact only for small rotations.
+- The dynamic relaxation uses a mass factor of 12 (the default); with 6, a buckled sheet can keep
+  ringing without converging.
 
 ![MuJoCo vs FEniCSx](results/mujoco_check/fig_mujoco.png)
 
@@ -591,6 +600,7 @@ kirigami/export.py     laser-cut SVG/DXF and 3D-print STL
 kirigami/importer.py   laser-cut SVG/DXF back to a KiriSMILES string (curves, units, nesting)
 kirigami/jobs.py       run engine: job queue, one solve at a time, job records, orphaned-run recovery
 kirigami/mjcf.py       a design's mesh as a MuJoCo 2D flex (MJCF)
+kirigami/kirchhoff_bend.py  corrected bending for MuJoCo (discrete Kirchhoff plate, with the Poisson coupling)
 scripts/kirigami_cli.py  one JSON-in/JSON-out entry point for people and agents
 webapp/                local web app (server.py + static/index.html): samples, editor, run, GIF
 mcp_server/server.py   MCP server: the tools for AI assistants (registered in .mcp.json)
@@ -605,6 +615,7 @@ scripts/export_mujoco.py  a design's mesh -> MuJoCo model (MJCF)
 scripts/mujoco_check.py   MuJoCo vs FEniCSx force-strain of a design (dynamic relaxation), figure
 scripts/mujoco_gif.py     GIF of a gripper pulling the sheet in MuJoCo
 scripts/pristine_*.py     uncut-sheet check of MuJoCo's membrane, bending and twist against FEniCSx
+scripts/mujoco_uncut.py   uncut sheet relaxed in MuJoCo and its own buckling load, built-in vs corrected bending
 results/mujoco_check/  MuJoCo comparison data, figures and GIFs
 scripts/verify/        rigid-unit mode counts that check the hierarchical (fractal) cut strings
 tests/                 tests of the notation, the import, the run engine, the MCP server and the MuJoCo export

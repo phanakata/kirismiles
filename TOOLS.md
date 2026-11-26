@@ -17,8 +17,10 @@ Every tool takes a small JSON **spec**. Only the name, the sheet and the pattern
 material, mesh, load, boundary conditions and probe points take defaults. The material
 (`E`, `nu`, `h`) is the user's choice; the default is the PET of the benchmark. The loading
 (`boundary`) is `clamped`, `roller` or `biaxial`, optionally held in plane
-([details](BENCHMARK.md#models)). The format is documented in `kirigami/spec.py`, and examples
-are in `specs/`.
+([details](BENCHMARK.md#models)). The load (`"load"`) sets the final stretch and the number of
+steps; `"pre_steps": n` adds n equal steps before buckling, so the stiffness before buckling can be
+fitted to several points (`tutorials/fit_stiffness.py`). The format is documented in
+`kirigami/spec.py`, and examples are in `specs/`.
 
 ```json
 {
@@ -87,8 +89,11 @@ $ python scripts/kirigami_cli.py export api_example.json
   nodes outside each end makes the ends clamps rather than hinges. Set the grip's position to
   stretch the sheet; its reaction is `-qfrc_passive` at the `pull` joint. `scripts/mujoco_check.py`
   compares MuJoCo's quasi-static force–strain curve with the FEniCSx engine and
-  `scripts/mujoco_gif.py` renders a gripper pulling the sheet. MuJoCo's bending is approximate
-  (no Poisson coupling, twisting too stiff); README.md says by how much.
+  `scripts/mujoco_gif.py` renders a gripper pulling the sheet. MuJoCo's built-in bending is
+  approximate (no Poisson coupling, twisting too stiff); `--bending kirchhoff` replaces it with the
+  corrected bending of `kirigami/kirchhoff_bend.py`, through MuJoCo's passive-force callback.
+  `scripts/pristine_mujoco.py` and `scripts/mujoco_uncut.py` check both against FEniCSx on an uncut
+  sheet; README.md says by how much.
 
 ## Python API
 

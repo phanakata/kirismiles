@@ -6,6 +6,8 @@ Reads results/runs/<name>/history.npz and fits two straight lines to the force F
 against the applied stretch Delta (mm):
 
   before buckling   F = k0 * Delta, through the origin, over the steps with Delta < Delta_c
+                    (with how far those steps stray from the line, and the solver's linear
+                    in-plane stiffness for comparison)
   after buckling    F = k * Delta + F0, over the steps whose strain Delta/L is between
                     --from and --to percent (default: from 1 % to the last step)
 
@@ -57,6 +59,12 @@ def main() -> None:
 
     print(f"buckling at Delta_c = {Dc:.4f} mm (strain {100 * Dc / L:.3f} %)")
     print(f"stiffness before buckling  k0 = {k0:.4g} N/mm   ({n} step{'s' if n != 1 else ''} below Delta_c)")
+    if fit["before_spread"] is None:
+        print("   one step before buckling: linearity cannot be judged (rerun with \"load\": {\"pre_steps\": 5})")
+    else:
+        print(f"   the {n} pre-buckling steps lie within {100 * fit['before_spread']:.2g} % of the line F = k0 Delta")
+    if "F_unit" in d.files:                          # the solver's linear in-plane stiffness
+        print(f"   linear in-plane solve: {float(d['F_unit']):.4g} N/mm (k0 / that = {k0 / float(d['F_unit']):.4f})")
     print(f"stiffness after buckling   k  = {k:.4g} N/mm   (fit over {m} steps, "
           f"{a.lo:g} to {hi:.3g} % strain; F0 = {F0:.4g} N)")
     print(f"the sheet is {k0 / k:.0f} times softer once it has buckled")

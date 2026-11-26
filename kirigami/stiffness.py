@@ -27,7 +27,10 @@ def fit_stiffness(delta: Sequence[float] | np.ndarray, force: Sequence[float] | 
     lo, hi: strain range of the after-buckling fit, in percent (0 <= lo < hi); hi = None
     means up to the last step.
     Returns k_before_N_per_mm (None without a step before Delta_c), k_after_N_per_mm and
-    F0_N (None with fewer than 2 steps in the range), the step counts and the range used.
+    F0_N (None with fewer than 2 steps in the range), the step counts and the range used,
+    and before_spread: the largest relative difference between a pre-buckling step's
+    secant F/Delta and k0 (0 for a straight line; None with fewer than 2 steps, when
+    linearity cannot be judged).
     """
     D, F = np.asarray(delta, float), np.asarray(force, float)
     if D.ndim != 1 or D.shape != F.shape or len(D) == 0:
@@ -41,9 +44,11 @@ def fit_stiffness(delta: Sequence[float] | np.ndarray, force: Sequence[float] | 
         raise ValueError(f"the fit range must satisfy 0 <= lo < hi (percent), not {lo} to {hi_}")
     pre = (D > 0) & (D < delta_c)
     k0 = float(np.sum(F[pre] * D[pre]) / np.sum(D[pre] ** 2)) if pre.any() else None
+    spread = (float(np.max(np.abs(F[pre] / D[pre] / k0 - 1)))
+              if k0 is not None and k0 != 0 and pre.sum() >= 2 else None)
     post = (strain >= lo) & (strain <= hi_)
     k, F0 = (float(v) for v in np.polyfit(D[post], F[post], 1)) if post.sum() >= 2 else (None, None)
-    return dict(k_before_N_per_mm=k0, n_before=int(pre.sum()),
+    return dict(k_before_N_per_mm=k0, n_before=int(pre.sum()), before_spread=spread,
                 k_after_N_per_mm=k, F0_N=F0, n_after=int(post.sum()), fit_from_pct=lo, fit_to_pct=hi_)
 
 

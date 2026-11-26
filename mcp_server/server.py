@@ -342,12 +342,14 @@ def buckle(code: str | None = None, L: float = 120.0, W: float = 60.0,
 @server.tool(annotations=WRITES)
 def start_simulation(code: str | None = None, L: float = 120.0, W: float = 60.0,
                      spec: dict[str, Any] | None = None, max_stretch: float = 0.1,
-                     steps: int = 40, thickness_mm: float | None = None,
+                     steps: int = 40, pre_steps: int = 1, thickness_mm: float | None = None,
                      E_MPa: float | None = None, nu: float | None = None,
                      boundary: str | None = None, in_plane: bool | None = None,
                      name: str | None = None, reuse: bool = True) -> dict[str, Any]:
     """Queue a full nonlinear shell simulation (minutes, needs Docker): the sheet is stretched
-    to max_stretch = Delta/L in `steps` load steps and its post-buckled shape is followed.
+    to max_stretch = Delta/L in `steps` load steps and its post-buckled shape is followed;
+    pre_steps (1 to 50) equal steps come before buckling, so the stiffness before buckling can be
+    fitted to several points (1, the default, is a single step at half the buckling stretch).
     Material: thickness_mm, E_MPa, nu (default PET: 0.127 mm, 3500 MPa, 0.38).
     boundary: "clamped" (grips, default), "roller" (ends move only along x: uniaxial stress)
     or "biaxial" (all edges pulled out equally). in_plane=True keeps the sheet flat (membrane
@@ -362,6 +364,8 @@ def start_simulation(code: str | None = None, L: float = 120.0, W: float = 60.0,
     if steps < 1:
         return {"ok": False, "errors": [f"steps must be at least 1, not {steps}"]}
     settings: dict[str, dict[str, Any]] = {"load": {"Dmax_over_L": max_stretch, "steps": int(steps)}}
+    if pre_steps != 1:                    # checked by S.validate below; 1 keeps older runs' settings
+        settings["load"]["pre_steps"] = pre_steps
     bnd = {k: v for k, v in (("type", boundary), ("in_plane", in_plane)) if v is not None}
     if bnd:
         settings["boundary"] = bnd

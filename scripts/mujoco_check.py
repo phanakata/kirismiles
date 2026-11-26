@@ -16,6 +16,12 @@ Writes results/mujoco_check/<tag>.npz (Delta, F, w_max, w_rms, residual, iterati
 <tag>_states/ (for scripts/mujoco_gif.py), and with --plot the comparison figure <tag>.png. --resume continues
 after the last saved step, so a long run can go in chunks.
 Material: E = 3500 MPa, h = 0.127 mm, nu = --nu in both codes.
+
+--bending kirchhoff replaces MuJoCo's built-in bending, which lacks the Poisson coupling of a Kirchhoff plate (MuJoCo
+issue 3960), by the corrected bending of kirigami/kirchhoff_bend.py: the flex keeps only its membrane
+(elastic2d="stretch") and the bending force is added through MuJoCo's passive-force callback.
+--factor 12 (the default) is the mass scaling of the paper's runs; with 6, the relaxation of a buckled kirigami sheet
+can ring without converging (the net force stays far above --tol), and those steps are not equilibria.
 """
 from __future__ import annotations
 
@@ -49,6 +55,9 @@ def relax(a: argparse.Namespace) -> None:
         phi = mode[cKDTree(z["x"]).query(x)[1]]             # FEniCS mode 1 on this mesh's nodes, max 1
         w0 = a.imp * H * phi
     xml, info = K.mjcf(x, c, a.L, E=E, h=H, nu=a.nu, bf=a.bf, dt=a.dt, w0=w0)
+    if a.bending == "kirchhoff":
+        xml = xml.replace('elastic2d="both"', 'elastic2d="stretch"')      # MuJoCo keeps the membrane only
+    mujoco.set_mjcb_passive(None)
     m = mujoco.MjModel.from_xml_string(xml)
     m.opt.disableflags |= mujoco.mjtDisableBit.mjDSBL_AUTORESET
     d = mujoco.MjData(m)
@@ -56,6 +65,15 @@ def relax(a: argparse.Namespace) -> None:
     adr = K.free_dofs(m, info)
     dof = np.array([[m.jnt_dofadr[m.joint(f"v{i}{ax}").id] for ax in "xyz"] for i in info["free"]]).ravel()
     colour = K.colouring(info)
+    bend, kdiag = None, None
+    if a.bending == "kirchhoff":         # all flex nodes (free, ghost strips, clamped, grip); rest = the imperfect sheet
+        from kirigami import kirchhoff_bend as KB
+        Kb = KB.bending_stiffness(info["x"], info["cells"], E, a.nu, H)
+        mujoco.mj_forward(m, d)
+        bend = KB.kirchhoff_callback(Kb, d.flexvert_xpos.copy(), info["free"], dof.reshape(-1, 3),
+                                     np.flatnonzero(info["side"] == 1), jd)
+        kdiag = Kb.diagonal()[info["free"]][:, None]
+        mujoco.set_mjcb_passive(bend)
     if a.fenics:      # the FEniCS run's load steps (kirigami/api.py simulate): 0.5 Dc, then geometric from 1.05 Dc
         Dc = float(np.load(a.fenics)["Delta_c"])
         Ds = np.concatenate([[0.5 * Dc], np.geomspace(1.05 * Dc, a.Dmax, a.steps)])
@@ -73,7 +91,14 @@ def relax(a: argparse.Namespace) -> None:
         print(f"resuming after Delta = {rows[-1][0]:.4f} ({len(rows)} steps saved)")
 
     def scale(factor: float) -> np.ndarray:
-        return K.set_armature(m, d, info, K.stiffness_diagonal(m, d, info, colour), a.dt, factor).ravel()
+        if bend is None:
+            return K.set_armature(m, d, info, K.stiffness_diagonal(m, d, info, colour), a.dt, factor).ravel()
+        # MuJoCo's membrane diagonal measured with the callback off (the colouring suits MuJoCo's stencil), plus the
+        # corrected bending's diagonal, exact, in every direction
+        mujoco.set_mjcb_passive(None)
+        Kd = K.stiffness_diagonal(m, d, info, colour) + kdiag
+        mujoco.set_mjcb_passive(bend)
+        return K.set_armature(m, d, info, Kd, a.dt, factor).ravel()
 
     if a.stop:
         Ds = Ds[Ds <= a.stop * (1 + 1e-9)]
@@ -140,6 +165,7 @@ def relax(a: argparse.Namespace) -> None:
         sdir = OUT / f"{a.tag}_states"
         sdir.mkdir(exist_ok=True)
         np.save(sdir / f"{len(rows):03d}_D{D:.4f}.npy", d.qpos[adr].astype(np.float32))
+    mujoco.set_mjcb_passive(None)
     print(f"done in {time.time() - t0:.0f} s")
 
 
@@ -191,7 +217,7 @@ def main() -> None:
     p.add_argument("--Dmax", type=positive, default=12.0)
     p.add_argument("--steps", type=count, default=40, help="load steps (as the FEniCS run)")
     p.add_argument("--dt", type=positive, default=1e-4, help="explicit step (masses are scaled to it)")
-    p.add_argument("--factor", type=positive, default=6.0, help="mass scaling: m_eff >= factor K_ii dt^2")
+    p.add_argument("--factor", type=positive, default=12.0, help="mass scaling: m_eff >= factor K_ii dt^2")
     p.add_argument("--tol", type=positive, default=1e-4, help="relaxed when |net force on free nodes| < tol |F|")
     p.add_argument("--rescale", type=count, default=2000, help="refresh the mass scaling every this many iterations")
     p.add_argument("--stop", type=positive, default=None, help="last load value to run (mm), keeping the step list")
@@ -200,6 +226,8 @@ def main() -> None:
     p.add_argument("--imp", type=nonneg, default=0.01, help="imperfection amplitude / h")
     p.add_argument("--nu", type=float, default=0.0, help="Poisson ratio (as in the FEniCS run)")
     p.add_argument("--bf", type=positive, default=K.BENDING_FACTOR)
+    p.add_argument("--bending", choices=["builtin", "kirchhoff"], default="builtin",
+                   help="MuJoCo's built-in flex bending, or the corrected bending (kirigami/kirchhoff_bend.py)")
     p.add_argument("--tag", required=True)
     p.add_argument("--title", default="")
     p.add_argument("--plot", action="store_true", help="only plot what is saved")

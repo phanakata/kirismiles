@@ -27,12 +27,37 @@ def test_good_spec_has_no_problems():
     ({**GOOD, "mesh": {"h_cut": 0}}, "h_cut"),
     ({**GOOD, "load": {"steps": 0}}, "load.steps"),
     ({**GOOD, "load": {"steps": 2.5}}, "load.steps"),
+    ({**GOOD, "load": {"pre_steps": 0}}, "load.pre_steps"),
+    ({**GOOD, "load": {"pre_steps": 3.0}}, "load.pre_steps"),
+    ({**GOOD, "load": {"pre_steps": True}}, "load.pre_steps"),
+    ({**GOOD, "load": {"pre_steps": 51}}, "load.pre_steps"),
     ({**GOOD, "boundary": {"type": "glued"}}, "boundary.type"),
     ({**GOOD, "boundary": {"in_plane": "yes"}}, "in_plane"),
 ])
 def test_validate_reports_instead_of_raising(spec, expect):
     errs = S.validate(spec)
     assert errs and any(expect in e for e in errs), errs
+
+
+def test_pre_buckling_steps():
+    import numpy as np
+    assert np.allclose(api.pre_buckling_steps(0.1), [0.05])            # the default, as before
+    assert np.allclose(api.pre_buckling_steps(0.1, 5), [0.019, 0.038, 0.057, 0.076, 0.095])
+    assert S.validate(S.load({**GOOD, "load": {"pre_steps": 5}})) == []
+    for dc, n in ((0.0, 3), (float("nan"), 3), (0.1, 0), (0.1, 2.5)):
+        with pytest.raises(ValueError):
+            api.pre_buckling_steps(dc, n)
+
+
+def test_stiffness_fit_reports_linearity():
+    from kirigami.stiffness import fit_stiffness
+    D = [0.02, 0.04, 0.06, 0.08, 1.0, 2.0, 3.0]
+    F = [2.0, 4.0, 6.0, 8.0, 9.0, 9.5, 10.0]
+    fit = fit_stiffness(D, F, 0.1, 100, lo=0.5)
+    assert abs(fit["k_before_N_per_mm"] - 100) < 1e-9 and fit["before_spread"] < 1e-12
+    F[3] = 7.6                                                            # 5 % soft at the last step
+    assert abs(fit_stiffness(D, F, 0.1, 100, lo=0.5)["before_spread"] - 0.04) < 0.02
+    assert fit_stiffness(D[3:], F[3:], 0.1, 100, lo=0.5)["before_spread"] is None
 
 
 def test_load_rejects_a_section_that_is_not_an_object():

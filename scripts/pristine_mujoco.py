@@ -8,6 +8,8 @@ field is the ratio of their stiffnesses for that deformation:
   twist       the twisted-clamp Kirchhoff solution                    -> MuJoCo / FEniCS torsional stiffness
 MuJoCo's own minimiser would have slightly lower energy than this imposed field (an upper bound), so the ratios are
 upper bounds. Clamps as in kirigami/mjcf.py: a ghost strip outside each end that moves with the clamp.
+The last line gives the same two bending ratios for the corrected bending (kirigami/kirchhoff_bend.py), which replaces
+MuJoCo's built-in bending in scripts/mujoco_check.py --bending kirchhoff.
 
     python scripts/pristine_mujoco.py results/mujoco_check/pristine_nu0.38.npz
 """
@@ -18,6 +20,7 @@ import mujoco
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from kirigami import kirchhoff_bend as KB  # noqa: E402
 from kirigami import mjcf as K  # noqa: E402
 
 z = np.load(sys.argv[1])
@@ -69,3 +72,7 @@ Uw = np.zeros((n0, 3)); Uw[:, 2] = z["w_twist"]
 r_w = energy(model("bend"), a * on_all(Uw) / float(z["theta"])) / (a**2 * float(z["E_twist"]) / float(z["theta"])**2)
 print(f"uncut {L:g} x {W:g} mm, h {h}, E {E:g}, nu {nu:g}: {n0} nodes")
 print(f"  MuJoCo / FEniCS   tension stiffness {r_t:.3f}   compression buckling load {r_b:.3f}   twist stiffness {r_w:.3f}")
+Kb = KB.bending_stiffness(xa, ca, E, nu, h)                  # the corrected bending on the same mesh
+c_b = KB.energy(Kb, a * on_all(Ub)[:, 2]) / (a**2 * float(z["Eb_phi"]))
+c_w = KB.energy(Kb, a * on_all(Uw)[:, 2] / float(z["theta"])) / (a**2 * float(z["E_twist"]) / float(z["theta"])**2)
+print(f"  corrected bending / FEniCS                            compression buckling load {c_b:.3f}   twist stiffness {c_w:.3f}")

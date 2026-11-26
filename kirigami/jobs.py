@@ -282,6 +282,8 @@ def _settings(spec: Spec) -> dict[str, Any]:
     out["load"] = {k: load.get(k) for k in ("Dmax", "steps", "stop_local_strain")}
     if load.get("spacing", "geometric") != "geometric":       # older runs have no spacing key
         out["load"]["spacing"] = load["spacing"]
+    if load.get("pre_steps", 1) != 1:                         # nor a pre_steps key
+        out["load"]["pre_steps"] = load["pre_steps"]
     out["imperfection_sign"] = spec.get("imperfection_sign", 1.0)
     out["ell"] = spec.get("ell")
     return json.loads(json.dumps(out))                    # tuples and lists compare equal
